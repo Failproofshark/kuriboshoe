@@ -1,0 +1,14 @@
+{% extends "layouts/default.html" %}
+{% block page_css %}
+<link rel="stylesheet" href="/libs/chosen-bower/chosen.min.css"/>
+{% endblock %}
+{% block title %}Game Tracker{% endblock %}
+{% block content %}
+<div id="form-insert" class="container"></div>
+{% endblock %}
+{% block page_javascript %}
+<script type="text/javascript" src="/libs/chosen-bower/chosen.jquery.min.js"></script>
+<script type="text/javascript" src="/libs/mithriljs/mithril.min.js"></script>
+<script type="text/javascript" src="/libs/lodash/lodash.min.js"></script>
+<script type="text/javascript" src="/js/gametrackeradmin.js"></script>
+{% endblock %}
