@@ -15,7 +15,7 @@ var Systems = function(initialValues) {
 GameTrackerAdmin.vm = new function() {
     var vm = {};
     vm.init = function() {
-        vm.formMode = "add";
+        vm.formMode = "search";
         
         //This is used as a stack;
         vm.screenHistory = ["GameFormScreen"];
@@ -141,7 +141,23 @@ GameTrackerAdmin.vm = new function() {
             return false;
         };
         vm.searchForGame = function() {
-            
+            var completedSet = _.omit(vm.gameForm, function(value, key) {
+                var returnValue = true;
+                if (_.isBoolean(value())) {
+                    returnValue = !value();
+                } else {
+                    returnValue = _.isEmpty(value());
+                }
+                return returnValue;
+            });
+            if (!_.isEmpty(completedSet)) {
+                m.request({method:"Post",
+                           url: "/search-games/",
+                           data: completedSet})
+                    .then(function(response) {
+                        console.log(response);
+                    });
+            }
             return false;
         };
     };
@@ -244,15 +260,12 @@ GameTrackerAdmin.screenCollection.GameFormScreen = function() {
             return displayValue;
         },
         confirmButtonHandler: function() {
-            console.log('called');
             var handler;
             switch (GameTrackerAdmin.vm.formMode) {
             case "add":
-                console.log('yay');
                 handler = GameTrackerAdmin.vm.createNewGame;
                 break;
             case "search":
-                console.log('wat');
                 handler = GameTrackerAdmin.vm.searchForGame;
                 break;
             }
