@@ -22,31 +22,29 @@
 
 ;;
 ;; Routing rules
-
+(defun sanitize-string (parameter)
+  (concatenate 'string (loop for char across parameter
+                          if (or (char= #\; char)
+                                 (char= #\' char)
+                                 (char= #\" char)
+                                 (char= #\` char))
+                          collect #\\ and collect char
+                          else collect char)))
 ;; sanitized-input list -> list
 ;; Construct a plist from an alist containing post or get parameters given from a request
 (defun sanitize-input (parameters)
-  (print parameters)
-  (flet ((sanitize-string (parameter)
-           (concatenate 'string (loop for char across parameter
-                                   if (or (char= #\; char)
-                                          (char= #\' char)
-                                          (char= #\" char)
-                                          (char= #\` char))
-                                   collect #\\ and collect char
-                                   else collect char))))
-    ;;Note: Is there a bug in sxql? When false is parsed by whatever is handing defroute the parameters
-    ;;A symbol is returned for a boolean value which results in an error in execution. The sql statement
-    ;;constructed by sxql looks correct so maybe its something with datafly's execute? Either way we
-    ;;convert false to 0 and true to 1; C style which is accepted by mariadb... Look into this
-    (loop for parameter in parameters 
-       collect (intern (string-upcase (sanitize-string (car parameter))) :keyword)
-       collect (let ((parameter-value (cdr parameter)))
-                 (cond ((stringp parameter-value) (sanitize-string parameter-value))
-                       ((symbolp parameter-value) (if (eq :false parameter-value)
-                                                      0
-                                                      1))
-                       (t parameter-value))))))
+  ;;Note: Is there a bug in sxql? When false is parsed by whatever is handing defroute the parameters
+  ;;A symbol is returned for a boolean value which results in an error in execution. The sql statement
+  ;;constructed by sxql looks correct so maybe its something with datafly's execute? Either way we
+  ;;convert false to 0 and true to 1; C style which is accepted by mariadb... Look into this
+  (loop for parameter in parameters 
+     collect (intern (string-upcase (sanitize-string (car parameter))) :keyword)
+     collect (let ((parameter-value (cdr parameter)))
+               (cond ((stringp parameter-value) (sanitize-string parameter-value))
+                     ((symbolp parameter-value) (if (eql :false parameter-value)
+                                                    0
+                                                    1))
+                     (t parameter-value)))))
 
 (defun create-insert-statement (table-name user-input)
   (insert-into table-name
@@ -79,6 +77,19 @@
       (encode-json result-set)
       (concatenate 'string "[" (encode-json (car result-set)) "]")))
 
+(defun filter-parameters (parameters omitted-keys)
+  (remove nil (map 'list
+                   #'(lambda (parameter)
+                       (let ((found-match (reduce #'(lambda (&optional boolean-1 boolean-2)
+                                                      (or boolean-1 boolean-2))
+                                                  (map 'list
+                                                       #'(lambda (key) (string= (car parameter) key))
+                                                       omitted-keys)
+                                                  :initial-value 'nil)))
+                         (unless found-match
+                           parameter)))
+                   parameters)))
+
 ;;GET
 (defroute ("/" :method :get) ()
   (let* ((initial-company-listing (encode-json-custom (retrieve-all-from-table :companies)))
@@ -105,21 +116,8 @@
                   _parsed
                   :name))
 
-(defun filter-parameters (parameters omitted-keys)
-  (remove nil (map 'list
-                   #'(lambda (parameter)
-                       (let ((found-match (reduce #'(lambda (&optional boolean-1 boolean-2)
-                                                      (or boolean-1 boolean-2))
-                                                  (map 'list
-                                                       #'(lambda (key) (string= (car parameter) key))
-                                                       omitted-keys)
-                                                  :initial-value 'nil)))
-                         (unless found-match
-                           parameter)))
-                   parameters)))
-
 (defroute ("/games/" :method :post) (&key |genres| |companies| _parsed)
-  (let ((gameparameters (sanitize-input (filter-parameters _parsed '("genres" "companies"))))
+ (let ((gameparameters (sanitize-input (filter-parameters _parsed '("genres" "companies"))))
         (new-game-id 'nil))
     (if (and |genres|
              |companies|
@@ -139,12 +137,53 @@
           (render-json `(:|status| "success"  :|newid| ,new-game-id)))
         (render-json '(:|status| "error" :|code| "ENOTFILLED")))))
 
-;;In progress
-;;(defroute ("/search-games/" :method :post) (&key |genres| |companies| _parsed)
-;;  (print
+
+;; Unfortunately there isn't a very clean way to apply the :and operator to a list
+(defroute ("/search-games/" :method :post) (&key |genres| |companies| _parsed)
+  ;;We sanitize the values which are then placed in an and list
+  (flet ((create-or-list (id-column-name id-list)
+           (list (append '(:or) (map 'list
+                                     #'(lambda (id)
+                                         `(:= ,id-column-name ,id))
+                                     id-list)))))
+    (let* ((game-parameters (remove 'nil
+                                    (map 'list
+                                         #'(lambda (parameter)
+                                             (let ((keyword-symbol (intern (string-upcase (car parameter)) :keyword)))
+                                               (if (and (not (eql keyword-symbol :companies))
+                                                        (not (eql keyword-symbol :genres)))
+                                                   (if (eql :name keyword-symbol)
+                                                       `(:like ,keyword-symbol ,(sanitize-string (cdr parameter)))
+                                                       `(:= ,keyword-symbol ,(sanitize-string (cdr parameter)))))))
+                                         _parsed)))
+           (company-parameters (if |companies| (create-or-list :company_id |companies|)))
+           (genre-parameters (if |genres| (create-or-list :genre_id |genres|)))
+           (where-arguments (append '(:and)
+                                    game-parameters
+                                    company-parameters
+                                    genre-parameters)))
+;;      (format t "~a" where-arguments))))
+      (format t "~a" (select (:games.*
+                              (:as :systems.name :system_name)
+                              (:as :genres.id :genre_id)
+                              (:as :genres.name :genre_name)
+                              (:as :companies.id :company_id)
+                              (:as :companies.name :companies_name))
+                             (from :games 
+                                   (inner-join :systems :on (:= :games.system_id :systems.id))
+                                   (inner-join :games_genres_pivot :on (:= :games.id :games_genres_pivot.game_id ))
+                                   (inner-join :genres :on (:= :games_genres_pivot.genre_id :genre.id))
+                                   (inner-join :games_companies_pivot :on (:= :games_companies_pivot.game_id :games.id))
+                                   (inner-join :companies :on (:= :games_companies_pivot.id :companies.id)))
+                             (where where-arguments))))))
+
+
+;;  (render-json (with-connection (db)
+;;                 (retrieve-all "select * from games"))))
+     
 ;;  (render-json `(:|foo| "bar")))
 
-;;
+
 ;; Error pages
 
 (defmethod on-exception ((app <web>) (code (eql 404)))
