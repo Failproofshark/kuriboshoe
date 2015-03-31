@@ -153,7 +153,10 @@
                                                (if (and (not (eql keyword-symbol :companies))
                                                         (not (eql keyword-symbol :genres)))
                                                    (if (eql :name keyword-symbol)
-                                                       `(:like ,keyword-symbol ,(sanitize-string (cdr parameter)))
+                                                       `(:like :games.name ,(concatenate 'string
+                                                                                         "%"
+                                                                                         (sanitize-string (cdr parameter))
+                                                                                         "%"))
                                                        `(:= ,keyword-symbol ,(sanitize-string (cdr parameter)))))))
                                          _parsed)))
            (company-parameters (if |companies| (create-or-list :company_id |companies|)))
@@ -174,7 +177,8 @@
                              (inner-join :games_genres_pivot :on (:= :games.id :games_genres_pivot.game_id ))
                              (inner-join :genres :on (:= :games_genres_pivot.genre_id :genres.id))
                              (inner-join :games_companies_pivot :on (:= :games_companies_pivot.game_id :games.id))
-                             (inner-join :companies :on (:= :games_companies_pivot.company_id :companies.id)))))))
+                             (inner-join :companies :on (:= :games_companies_pivot.company_id :companies.id))
+                             (where where-arguments))))))
 
 
 ;;  (render-json (with-connection (db)
