@@ -105,13 +105,21 @@
                   _parsed
                   :name))
 
+(defun filter-parameters (parameters omitted-keys)
+  (remove nil (map 'list
+                   #'(lambda (parameter)
+                       (let ((found-match (reduce #'(lambda (&optional boolean-1 boolean-2)
+                                                      (or boolean-1 boolean-2))
+                                                  (map 'list
+                                                       #'(lambda (key) (string= (car parameter) key))
+                                                       omitted-keys)
+                                                  :initial-value 'nil)))
+                         (unless found-match
+                           parameter)))
+                   parameters)))
+
 (defroute ("/games/" :method :post) (&key |genres| |companies| _parsed)
-  (let ((gameparameters (sanitize-input (remove nil (map 'list
-                                                         #'(lambda (parameter)
-                                                             (unless (or (string= (car parameter) "genres")
-                                                                         (string= (car parameter) "companies"))
-                                                               parameter))
-                                                         _parsed))))
+  (let ((gameparameters (sanitize-input (filter-parameters _parsed '("genres" "companies"))))
         (new-game-id 'nil))
     (if (and |genres|
              |companies|
@@ -130,6 +138,11 @@
                (execute (create-insert-statement :games_genres_pivot `(:game_id ,new-game-id :genre_id ,genre-id))))
           (render-json `(:|status| "success"  :|newid| ,new-game-id)))
         (render-json '(:|status| "error" :|code| "ENOTFILLED")))))
+
+;;In progress
+;;(defroute ("/search-games/" :method :post) (&key |genres| |companies| _parsed)
+;;  (print
+;;  (render-json `(:|foo| "bar")))
 
 ;;
 ;; Error pages
