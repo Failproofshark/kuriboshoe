@@ -166,26 +166,24 @@
                                     company-parameters
                                     genre-parameters))
            (result-set 'nil))
-      (format t "~a" (select (:games.*
-                              (:as :systems.name :system_name)
-                              (:as :genres.id :genre_id)
-                              (:as :genres.name :genre_name)
-                              (:as :companies.id :company_id)
-                              (:as :companies.name :companies_name))
-                             (from :games)
-                             (inner-join :systems :on (:= :games.system_id :systems.id))
-                             (inner-join :games_genres_pivot :on (:= :games.id :games_genres_pivot.game_id ))
-                             (inner-join :genres :on (:= :games_genres_pivot.genre_id :genres.id))
-                             (inner-join :games_companies_pivot :on (:= :games_companies_pivot.game_id :games.id))
-                             (inner-join :companies :on (:= :games_companies_pivot.company_id :companies.id))
-                             (where where-arguments))))))
-
-
-;;  (render-json (with-connection (db)
-;;                 (retrieve-all "select * from games"))))
-     
-;;  (render-json `(:|foo| "bar")))
-
+      (with-connection (db)
+        (setf result-set
+              (retrieve-all
+               (select (:games.*
+                        (:as :systems.name :system_name)
+                        (:as :genres.id :genre_id)
+                        (:as :genres.name :genre_name)
+                        (:as :companies.id :company_id)
+                        (:as :companies.name :companies_name))
+                       (from :games)
+                       (inner-join :systems :on (:= :games.system_id :systems.id))
+                       (inner-join :games_genres_pivot :on (:= :games.id :games_genres_pivot.game_id ))
+                       (inner-join :genres :on (:= :games_genres_pivot.genre_id :genres.id))
+                       (inner-join :games_companies_pivot :on (:= :games_companies_pivot.game_id :games.id))
+                       (inner-join :companies :on (:= :games_companies_pivot.company_id :companies.id))
+                       (where where-arguments)))))
+      (setf (headers *response* :content-type) "application/json")
+      (encode-json-custom result-set))))
 
 ;; Error pages
 
