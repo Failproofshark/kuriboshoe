@@ -65,17 +65,17 @@
         (render-json '(:|status| "error" :|code| "ENONAME")))))
 
 ;;Have an optional argument to sort-by
-(defun retrieve-all-from-table (table-name)
-  (with-connection (db)
-    (retrieve-all
-     (select :*
-       (from table-name)))))
+(defmacro retrieve-all-from-table (table-name &body other-clauses)
+  `(retrieve-all
+    (select :*
+            (from ,table-name)
+            ,@other-clauses)))
 
 ;; This is a small work around to what seems to be a bug in datafly. This should only be used for result sets!
 (defun encode-json-custom (result-set)
-  (if (> (length result-set) 1)
-      (encode-json result-set)
-      (concatenate 'string "[" (encode-json (car result-set)) "]")))
+  (if (= (length result-set) 1)
+      (concatenate 'string "[" (encode-json (car result-set)) "]")
+      (encode-json result-set)))
 
 (defun filter-parameters (parameters omitted-keys)
   (remove nil (map 'list
@@ -92,13 +92,53 @@
 
 ;;GET
 (defroute ("/" :method :get) ()
-  (let* ((initial-company-listing (encode-json-custom (retrieve-all-from-table :companies)))
-         (initial-genre-listing (encode-json-custom (retrieve-all-from-table :genres)))
-         (initial-systems-listing (encode-json-custom (retrieve-all-from-table :systems)))
-         (environment-variables (list :companies initial-company-listing
-                                      :genres initial-genre-listing
-                                      :systems initial-systems-listing)))
-    (render #p"index.html" environment-variables)))
+  ;; We don't assign the following variables initial values so we can just open the db once to request all the data we need
+  (let* ((initial-company-listing)
+         (initial-genre-listing)
+         (initial-systems-listing))
+    (with-connection (db)
+      (setf initial-company-listing (encode-json-custom (retrieve-all-from-table :companies)))
+      (setf initial-genre-listing (encode-json-custom (retrieve-all-from-table :genres)))
+      (setf initial-systems-listing (encode-json-custom (retrieve-all-from-table :systems))))
+    (render #p"index.html" (list :companies initial-company-listing
+                                 :genres initial-genre-listing
+                                 :systems initial-systems-listing))))
+
+(defroute ("/games/" :method :get) (&key |id|)
+  (if |id|
+      (flet ((extract-if-single (suspect-list)
+               ;;This was written in light of the datafly bug I found concerning single item lists
+               (if (= (length suspect-list) 1)
+                   (car suspect-list)
+                   suspect-list)))
+        (let ((game-id (parse-integer |id|))
+              (game-table-record)
+              (related-genres)
+              (related-companies)
+              (systems)
+              (genres)
+              (companies))
+          (with-connection (db)
+            (setf game-table-record (retrieve-one
+                                     (select :*
+                                             (from :games)
+                                             (where (:= :id game-id)))))
+            (setf related-genres (list :genres (extract-if-single (retrieve-all-from-table :games_genres_pivot
+                                                                    (where (:= :game_id game-id))))))
+            (setf related-companies (list :companies (extract-if-single (retrieve-all-from-table :games_companies_pivot
+                                                                          (where (:= :game_id game-id))))))
+            (setf systems (list :new-systems (extract-if-single (retrieve-all-from-table :systems))))
+            (setf genres (list :new-genres (extract-if-single (retrieve-all-from-table :genres))))
+            (setf companies (list :new-companies (extract-if-single (retrieve-all-from-table :companies))))
+          (setf (headers *response* :contente-type) "application/json")
+          (encode-json-custom (append game-table-record
+                                      related-genres
+                                      related-companies
+                                      systems
+                                      genres
+                                      companies)))))))
+                                
+          
 
 ;;POST
 (defroute ("/company/" :method :post) (&key _parsed)
@@ -139,7 +179,7 @@
 
 
 ;; Unfortunately there isn't a very clean way to apply the :and operator to a list
-(defroute ("/search-games/" :method :post) (&key |genres| |companies| _parsed)
+(defroute ("/search-games-ajax/" :method :post) (&key |genres| |companies| _parsed)
   ;;We sanitize the values which are then placed in an and list
   (flet ((create-or-list (id-column-name id-list)
            (list (append '(:or) (map 'list
@@ -181,7 +221,8 @@
                        (inner-join :genres :on (:= :games_genres_pivot.genre_id :genres.id))
                        (inner-join :games_companies_pivot :on (:= :games_companies_pivot.game_id :games.id))
                        (inner-join :companies :on (:= :games_companies_pivot.company_id :companies.id))
-                       (where where-arguments)))))
+                       (where where-arguments)
+                       (group-by :games.id)))))
       (setf (headers *response* :content-type) "application/json")
       (encode-json-custom result-set))))
 

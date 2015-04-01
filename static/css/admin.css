@@ -1,0 +1,10 @@
+.result-row {
+    padding: 10px 0px;
+}
+
+.game-search-results-button {
+    float:right;
+    cursor: pointer;
+    font-size: 25px;
+    margin-left: 20px;
+}
