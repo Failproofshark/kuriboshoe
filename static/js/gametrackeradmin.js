@@ -166,16 +166,22 @@ GameTrackerAdmin.vm = new function() {
         };
         vm.currentGameId = 0;
         vm.initiateEditGameEntry = function(gameId) {
-            console.log(gameId);
             if (gameId && _.isNumber(Number(gameId))) {
+                /* A known limitation with the backend: things we expect to be an array may be a simple object due to the json encoder on the backend
+                   not being able to encode single row results correctly
+                 */
+                var ensureArray = function(item) {
+                    var returnValue = _.isArray(item) ? item : [item];
+                    return returnValue;
+                };
                 //We could just use the data we retrieved from the search but let's guarantee the user with the most recent information
                 m.request({method: "GET",
                            url: "/games/",
                            data: {id: Number(gameId)}
                           })
                     .then(function(response) {
-                        /*m.startComputation();
-                        vm.currentGameId = response.id;
+                        m.startComputation();
+                        vm.currentGameId = Number(response.id);
                         vm.gameForm.name(response.name);
                         vm.gameForm.blurb(response.blurb);
                         vm.gameForm.region(response.region);
@@ -184,13 +190,26 @@ GameTrackerAdmin.vm = new function() {
                         vm.gameForm.notes(response.notes);
                         vm.gameForm.quantity(response.quantity);
                         vm.gameForm.system_id(response.systemId);
-                        vm.gameForm.companies(response.companies);
-                        vm.gameForm.genres(response.genres);
-                        m.endComputation();*/
-                        console.log(response);
+                        vm.gameForm.companies(_.pluck(ensureArray(response.companies), "companyId"));
+                        vm.gameForm.genres(_.pluck(ensureArray(response.genres), "genreId"));
+                        vm.formMode = "update";
+                        vm.searchResults = [];
+                        m.endComputation();
                     });
             }
         };
+
+        vm.updateGame = function() {
+            var data = _.extend({id: Number(vm.currentGameId)}, vm.gameForm);
+            m.request({method: "PUT",
+                       url: "/games/",
+                       data: data})
+                .then(function(response) {
+                    console.log(response);
+                });
+            return false;
+        };
+
     };
     return vm;
 };
@@ -310,6 +329,9 @@ GameTrackerAdmin.screenCollection.GameFormScreen = function() {
                 break;
             case "search":
                 handler = GameTrackerAdmin.vm.searchForGame;
+                break;
+            case "update":
+                handler = GameTrackerAdmin.vm.updateGame;
                 break;
             }
             return handler;

@@ -50,6 +50,11 @@
   (insert-into table-name
                (apply #'set= user-input)))
 
+(defun create-update-statement (table-name user-input id)
+  (update table-name
+          (apply #'set= user-input)
+          (where (:= :id id))))
+
 (defun add-new-record (table-name user-input search-column)
   (let* ((sanitized-user-input (sanitize-input user-input))
          (new-id 'nil))
@@ -89,6 +94,12 @@
                          (unless found-match
                            parameter)))
                    parameters)))
+
+(defun populate-pivot-tables (game-id genres companies)
+  (loop for company-id in companies do
+       (execute (create-insert-statement :games_companies_pivot `(:game_id ,game-id  :company_id ,company-id))))
+  (loop for genre-id in genres do
+       (execute (create-insert-statement :games_genres_pivot `(:game_id ,game-id :genre_id ,genre-id)))))
 
 ;;GET
 (defroute ("/" :method :get) ()
@@ -157,11 +168,11 @@
                   :name))
 
 (defroute ("/games/" :method :post) (&key |genres| |companies| _parsed)
- (let ((gameparameters (sanitize-input (filter-parameters _parsed '("genres" "companies"))))
-        (new-game-id 'nil))
-    (if (and |genres|
-             |companies|
-             _parsed)
+  (if (and |genres|
+           |companies|
+           _parsed)
+      (let ((gameparameters (sanitize-input (filter-parameters _parsed '("genres" "companies"))))
+            (new-game-id 'nil))
         (with-connection (db)
           (execute
            (create-insert-statement :games gameparameters))
@@ -225,6 +236,25 @@
                        (group-by :games.id)))))
       (setf (headers *response* :content-type) "application/json")
       (encode-json-custom result-set))))
+
+;; PUT
+(defroute ("/games/" :method :put) (&key |id| |genres| |companies| _parsed)
+  (if (and |id|
+           |genres|
+           |companies|
+           _parsed)
+      (let ((game-parameters (sanitize-input (filter-parameters _parsed '("genres" "companies")))))
+        (with-connection (db)
+          (execute
+           (create-update-statement :games game-parameters |id|))
+          (execute
+           (delete-from :games_genres_pivot
+                        (where (:= :game_id |id|))))
+          (execute
+           (delete-from :games_companies_pivot
+                        (where (:= :game_id |id|))))
+          (populate-pivot-tables |id| |genres| |companies|))
+        (render-json '(:|status| "success")))))
 
 ;; Error pages
 
