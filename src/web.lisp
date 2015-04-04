@@ -106,8 +106,13 @@
 
 (defun parse-string-ints (list-of-strings)
   (map 'list
-       #'parse-integer
+       #'guarantee-number
        list-of-strings))
+
+(defun guarantee-number (var)
+  (if (numberp var)
+      var
+      (parse-integer var)))
 
 ;;GET
 (defroute ("/" :method :get) ()
@@ -131,7 +136,7 @@
                              (if (= (length suspect-list) 1)
                                  (car suspect-list)
                                  suspect-list)))
-                      (let ((game-id (parse-integer |id|))
+                      (let ((game-id (guarantee-number |id|))
                             (game-table-record)
                             (related-genres)
                             (related-companies)
@@ -240,10 +245,10 @@
                                                                          `(:= ,keyword-symbol ,(sanitize-string (cdr parameter)))))))
                                                            _parsed)))
                              (company-parameters (if |companies| (create-or-list :company_id (map 'list
-                                                                                                  #'parse-integer
+                                                                                                  #'guarantee-number
                                                                                                   |companies|))))
                              (genre-parameters (if |genres| (create-or-list :genre_id (map 'list
-                                                                                           #'parse-integer
+                                                                                           #'guarantee-number
                                                                                            |genres|))))
                              (where-arguments (append '(:and)
                                                       game-parameters
@@ -281,21 +286,24 @@
            (has-required-fields-p '("name" "region" "has_manual" "has_box" "quantity" "system_id") _parsed))
       (handler-case (let ((game-parameters (sanitize-input (filter-parameters _parsed '("genres" "companies"))))
                           (parsed-company-ids (parse-string-ints |companies|))
-                          (parsed-genre-ids (parse-string-ints |genres|)))
+                          (parsed-genre-ids (parse-string-ints |genres|))
+                          (parsed-game-id (guarantee-number |id|)))
                       (with-connection (db)
                         (execute
-                         (create-update-statement :games game-parameters |id|))
+                         (create-update-statement :games game-parameters parsed-game-id))
                         (execute
-                         (delete-from-table :games_genres_pivot |id|))
+                         (delete-from-table :games_genres_pivot parsed-game-id))
                         (execute
-                         (delete-from-table :games_companies_pivot |id|))
-                        (populate-pivot-tables |id| parsed-genre-ids parsed-company-ids)
+                         (delete-from-table :games_companies_pivot parsed-game-id))
+                        (populate-pivot-tables parsed-game-id parsed-genre-ids parsed-company-ids)
                         (render-json '(:|status| "success"))))
         (sb-int:simple-parse-error ()
           (render-json '(:|status| "error" :|code| "ENOTINT"))))
       (render-json '(:|status| "error" :|code| "EMALFORMEDINPUT"))))
 
 ;; DELETE
+;;(defroute ("/games/" :method :delete) (&key |id|)
+;;  (if 
 
 ;; Error pages
 
