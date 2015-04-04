@@ -211,50 +211,56 @@
   (if (or |genres|
           |companies|
           _parsed)
-      (flet ((create-or-list (id-column-name id-list)
-               (list (append '(:or) (map 'list
-                                         #'(lambda (id)
-                                             `(:= ,id-column-name ,id))
-                                         id-list)))))
-        (let* ((game-parameters (remove 'nil
-                                        (map 'list
-                                             #'(lambda (parameter)
-                                                 (let ((keyword-symbol (intern (string-upcase (car parameter)) :keyword)))
-                                                   (if (and (not (eql keyword-symbol :companies))
-                                                            (not (eql keyword-symbol :genres)))
-                                                       (if (eql :name keyword-symbol)
-                                                           `(:like :games.name ,(concatenate 'string
-                                                                                             "%"
-                                                                                             (sanitize-string (cdr parameter))
-                                                                                             "%"))
-                                                           `(:= ,keyword-symbol ,(sanitize-string (cdr parameter)))))))
-                                             _parsed)))
-               (company-parameters (if |companies| (create-or-list :company_id |companies|)))
-               (genre-parameters (if |genres| (create-or-list :genre_id |genres|)))
-               (where-arguments (append '(:and)
-                                        game-parameters
-                                        company-parameters
-                                        genre-parameters))
-               (result-set 'nil))
-          (with-connection (db)
-            (setf result-set
-                  (retrieve-all
-                   (select (:games.*
-                            (:as :systems.name :system_name)
-                            (:as :genres.id :genre_id)
-                            (:as :genres.name :genre_name)
-                            (:as :companies.id :company_id)
-                            (:as :companies.name :companies_name))
-                           (from :games)
-                           (inner-join :systems :on (:= :games.system_id :systems.id))
-                           (inner-join :games_genres_pivot :on (:= :games.id :games_genres_pivot.game_id ))
-                           (inner-join :genres :on (:= :games_genres_pivot.genre_id :genres.id))
-                           (inner-join :games_companies_pivot :on (:= :games_companies_pivot.game_id :games.id))
-                           (inner-join :companies :on (:= :games_companies_pivot.company_id :companies.id))
-                           (where where-arguments)
-                           (group-by :games.id)))))
-          (setf (headers *response* :content-type) "application/json")
-          (encode-json-custom result-set)))
+      (handler-case (flet ((create-or-list (id-column-name id-list)
+                             (list (append '(:or) (map 'list
+                                                       #'(lambda (id)
+                                                           `(:= ,id-column-name ,id))
+                                                       id-list)))))
+                      (let* ((game-parameters (remove 'nil
+                                                      (map 'list
+                                                           #'(lambda (parameter)
+                                                               (let ((keyword-symbol (intern (string-upcase (car parameter)) :keyword)))
+                                                                 (if (and (not (eql keyword-symbol :companies))
+                                                                          (not (eql keyword-symbol :genres)))
+                                                                     (if (eql :name keyword-symbol)
+                                                                         `(:like :games.name ,(concatenate 'string
+                                                                                                           "%"
+                                                                                                           (sanitize-string (cdr parameter))
+                                                                                                           "%"))
+                                                                         `(:= ,keyword-symbol ,(sanitize-string (cdr parameter)))))))
+                                                           _parsed)))
+                             (company-parameters (if |companies| (create-or-list :company_id (map 'list
+                                                                                                  #'parse-integer
+                                                                                                  |companies|))))
+                             (genre-parameters (if |genres| (create-or-list :genre_id (map 'list
+                                                                                           #'parse-integer
+                                                                                           |genres|))))
+                             (where-arguments (append '(:and)
+                                                      game-parameters
+                                                      company-parameters
+                                                      genre-parameters))
+                             (result-set 'nil))
+                        (with-connection (db)
+                          (setf result-set
+                                (retrieve-all
+                                 (select (:games.*
+                                          (:as :systems.name :system_name)
+                                          (:as :genres.id :genre_id)
+                                          (:as :genres.name :genre_name)
+                                          (:as :companies.id :company_id)
+                                          (:as :companies.name :companies_name))
+                                         (from :games)
+                                         (inner-join :systems :on (:= :games.system_id :systems.id))
+                                         (inner-join :games_genres_pivot :on (:= :games.id :games_genres_pivot.game_id ))
+                                         (inner-join :genres :on (:= :games_genres_pivot.genre_id :genres.id))
+                                         (inner-join :games_companies_pivot :on (:= :games_companies_pivot.game_id :games.id))
+                                         (inner-join :companies :on (:= :games_companies_pivot.company_id :companies.id))
+                                         (where where-arguments)
+                                         (group-by :games.id)))))
+                        (setf (headers *response* :content-type) "application/json")
+                        (encode-json-custom result-set)))
+        (sb-int:simple-parse-error ()
+          (render-json '(:|status| "error" :|code| "ENOTINT"))))
       (render-json `(:|status| "error" :|code| "EMALFORMEDINPUT"))))
 
 ;; PUT
