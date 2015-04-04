@@ -104,6 +104,11 @@
   (delete-from table-name
                (where (:= :game_id id))))
 
+(defun parse-string-ints (list-of-strings)
+  (map 'list
+       #'parse-integer
+       list-of-strings))
+
 ;;GET
 (defroute ("/" :method :get) ()
   ;; We don't assign the following variables initial values so we can just open the db once to request all the data we need
@@ -118,6 +123,7 @@
                                  :genres initial-genre-listing
                                  :systems initial-systems-listing))))
 
+;;Query strings are read in as strings while post parameters are parsed as the type they're supposed to
 (defroute ("/games/" :method :get) (&key |id|)
   (if |id|
       (handler-case (flet ((extract-if-single (suspect-list)
@@ -188,21 +194,25 @@
   (if (and |genres|
            |companies|
            (has-required-fields-p '("name" "region" "has_manual" "has_box" "quantity" "system_id") _parsed))
-      (let ((gameparameters (sanitize-input (filter-parameters _parsed '("genres" "companies"))))
-            (new-game-id 'nil))
-        (with-connection (db)
-          (execute
-           (create-insert-statement :games gameparameters))
-          (setf new-game-id (getf (retrieve-one
-                                   (select :id
-                                           (from :games)
-                                           (where (:= :name (getf gameparameters :name)))))
-                                  :id))
-          (loop for company-id in |companies| do
-               (execute (create-insert-statement :games_companies_pivot `(:game_id ,new-game-id  :company_id ,company-id))))
-          (loop for genre-id in |genres| do
-               (execute (create-insert-statement :games_genres_pivot `(:game_id ,new-game-id :genre_id ,genre-id))))
-          (render-json `(:|status| "success"  :|newid| ,new-game-id))))
+      (handler-case (let ((gameparameters (sanitize-input (filter-parameters _parsed '("genres" "companies"))))
+                          (parsed-company-ids (parse-string-ints |companies|))
+                          (parsed-genre-ids (parse-string-ints |genres|))
+                          (new-game-id 'nil))
+                      (with-connection (db)
+                        (execute
+                         (create-insert-statement :games gameparameters))
+                        (setf new-game-id (getf (retrieve-one
+                                                 (select :id
+                                                         (from :games)
+                                                         (where (:= :name (getf gameparameters :name)))))
+                                                :id))
+                        (loop for company-id in |companies| do
+                             (execute (create-insert-statement :games_companies_pivot `(:game_id ,new-game-id  :company_id ,company-id))))
+                        (loop for genre-id in |genres| do
+                             (execute (create-insert-statement :games_genres_pivot `(:game_id ,new-game-id :genre_id ,genre-id))))
+                        (render-json `(:|status| "success"  :|newid| ,new-game-id))))
+        (sb-int:simple-parse-error ()
+          (render-json '(:|status| "error" :|code| "ENOTINT"))))
       (render-json '(:|status| "error" :|code| "EMALFORMEDINPUT"))))
 
 
@@ -270,18 +280,17 @@
            |companies|
            (has-required-fields-p '("name" "region" "has_manual" "has_box" "quantity" "system_id") _parsed))
       (handler-case (let ((game-parameters (sanitize-input (filter-parameters _parsed '("genres" "companies"))))
-                          (parsed-game-id (parse-integer |id|))
-                          (parsed-company-ids (map 'list #'parse-integer |companies|))
-                          (parsed-genre-ids (map 'list #'parse-integer |genres|)))
+                          (parsed-company-ids (parse-string-ints |companies|))
+                          (parsed-genre-ids (parse-string-ints |genres|)))
                       (with-connection (db)
                         (execute
-                         (create-update-statement :games game-parameters parsed-game-id))
+                         (create-update-statement :games game-parameters |id|))
                         (execute
-                         (delete-from-table :games_genres_pivot parsed-company-ids))
+                         (delete-from-table :games_genres_pivot |id|))
                         (execute
-                         (delete-from-table :games_companies_pivot parsed-game-id))
-                        (populate-pivot-tables parsed-game-id parsed-company-ids parsed-genre-ids))
-                      (render-json '(:|status| "success")))
+                         (delete-from-table :games_companies_pivot |id|))
+                        (populate-pivot-tables |id| parsed-genre-ids parsed-company-ids)
+                        (render-json '(:|status| "success"))))
         (sb-int:simple-parse-error ()
           (render-json '(:|status| "error" :|code| "ENOTINT"))))
       (render-json '(:|status| "error" :|code| "EMALFORMEDINPUT"))))
