@@ -100,6 +100,10 @@
   (loop for genre-id in genres do
        (execute (create-insert-statement :games_genres_pivot `(:game_id ,game-id :genre_id ,genre-id)))))
 
+(defun delete-from-table (table-name id)
+  (delete-from table-name
+               (where (:= :game_id id))))
+
 ;;GET
 (defroute ("/" :method :get) ()
   ;; We don't assign the following variables initial values so we can just open the db once to request all the data we need
@@ -115,39 +119,40 @@
                                  :systems initial-systems-listing))))
 
 (defroute ("/games/" :method :get) (&key |id|)
-  (if (and |id|
-           (numberp |id|))
-      (flet ((extract-if-single (suspect-list)
-               ;;This was written in light of the datafly bug I found concerning single item lists
-               (if (= (length suspect-list) 1)
-                   (car suspect-list)
-                   suspect-list)))
-        (let ((game-id (parse-integer |id|))
-              (game-table-record)
-              (related-genres)
-              (related-companies)
-              (systems)
-              (genres)
-              (companies))
-          (with-connection (db)
-            (setf game-table-record (retrieve-one
-                                     (select :*
-                                             (from :games)
-                                             (where (:= :id game-id)))))
-            (setf related-genres (list :genres (extract-if-single (retrieve-all-from-table :games_genres_pivot
-                                                                    (where (:= :game_id game-id))))))
-            (setf related-companies (list :companies (extract-if-single (retrieve-all-from-table :games_companies_pivot
-                                                                          (where (:= :game_id game-id))))))
-            (setf systems (list :new-systems (extract-if-single (retrieve-all-from-table :systems))))
-            (setf genres (list :new-genres (extract-if-single (retrieve-all-from-table :genres))))
-            (setf companies (list :new-companies (extract-if-single (retrieve-all-from-table :companies))))
-          (setf (headers *response* :contente-type) "application/json")
-          (encode-json-custom (append game-table-record
-                                      related-genres
-                                      related-companies
-                                      systems
-                                      genres
-                                      companies)))))
+  (if |id|
+      (handler-case (flet ((extract-if-single (suspect-list)
+                             ;;This was written in light of the datafly bug I found concerning single item lists
+                             (if (= (length suspect-list) 1)
+                                 (car suspect-list)
+                                 suspect-list)))
+                      (let ((game-id (parse-integer |id|))
+                            (game-table-record)
+                            (related-genres)
+                            (related-companies)
+                            (systems)
+                            (genres)
+                            (companies))
+                        (with-connection (db)
+                          (setf game-table-record (retrieve-one
+                                                   (select :*
+                                                           (from :games)
+                                                           (where (:= :id game-id)))))
+                          (setf related-genres (list :genres (extract-if-single (retrieve-all-from-table :games_genres_pivot
+                                                                                                         (where (:= :game_id game-id))))))
+                          (setf related-companies (list :companies (extract-if-single (retrieve-all-from-table :games_companies_pivot
+                                                                                                               (where (:= :game_id game-id))))))
+                          (setf systems (list :new-systems (extract-if-single (retrieve-all-from-table :systems))))
+                          (setf genres (list :new-genres (extract-if-single (retrieve-all-from-table :genres))))
+                          (setf companies (list :new-companies (extract-if-single (retrieve-all-from-table :companies))))
+                          (setf (headers *response* :contente-type) "application/json")
+                          (encode-json-custom (append game-table-record
+                                                      related-genres
+                                                      related-companies
+                                                      systems
+                                                      genres
+                                                      companies)))))
+        (sb-int:simple-parse-error ()
+          (render-json '(:|status| "error" :|code| "ENOTINT"))))
       (render-json `(:|status| "error" :|code| "ENOID"))))
                                 
 (defun has-required-fields-p (required-arguments actual-arguments)
@@ -257,19 +262,23 @@
   (if (and |id|
            |genres|
            |companies|
-           _parsed)
-      (let ((game-parameters (sanitize-input (filter-parameters _parsed '("genres" "companies")))))
-        (with-connection (db)
-          (execute
-           (create-update-statement :games game-parameters |id|))
-          (execute
-           (delete-from :games_genres_pivot
-                        (where (:= :game_id |id|))))
-          (execute
-           (delete-from :games_companies_pivot
-                        (where (:= :game_id |id|))))
-          (populate-pivot-tables |id| |genres| |companies|))
-        (render-json '(:|status| "success")))))
+           (has-required-fields-p '("name" "region" "has_manual" "has_box" "quantity" "system_id") _parsed))
+      (handler-case (let ((game-parameters (sanitize-input (filter-parameters _parsed '("genres" "companies"))))
+                          (parsed-game-id (parse-integer |id|))
+                          (parsed-company-ids (map 'list #'parse-integer |companies|))
+                          (parsed-genre-ids (map 'list #'parse-integer |genres|)))
+                      (with-connection (db)
+                        (execute
+                         (create-update-statement :games game-parameters parsed-game-id))
+                        (execute
+                         (delete-from-table :games_genres_pivot parsed-company-ids))
+                        (execute
+                         (delete-from-table :games_companies_pivot parsed-game-id))
+                        (populate-pivot-tables parsed-game-id parsed-company-ids parsed-genre-ids))
+                      (render-json '(:|status| "success")))
+        (sb-int:simple-parse-error ()
+          (render-json '(:|status| "error" :|code| "ENOTINT"))))
+      (render-json '(:|status| "error" :|code| "EMALFORMEDINPUT"))))
 
 ;; DELETE
 
