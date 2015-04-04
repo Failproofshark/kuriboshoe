@@ -102,7 +102,7 @@
 
 (defun delete-from-table (table-name id)
   (delete-from table-name
-               (where (:= :game_id id))))
+               (where (:= :id id))))
 
 (defun parse-string-ints (list-of-strings)
   (map 'list
@@ -302,8 +302,16 @@
       (render-json '(:|status| "error" :|code| "EMALFORMEDINPUT"))))
 
 ;; DELETE
-;;(defroute ("/games/" :method :delete) (&key |id|)
-;;  (if 
+(defroute ("/games/" :method :delete) (&key |id|)
+  (if |id|
+      (handler-case (let ((parsed-game-id (guarantee-number |id|)))
+                      (with-connection (db)
+                        (execute
+                         (delete-from-table :games parsed-game-id)))
+                      (render-json '(:|status| "success")))
+        (sb-int:simple-parse-error ()
+          (render-json '(:|status| "error" :|code| "ENOTINT"))))
+      (render-json '(:|status| "error" :|code| "EMALFORMEDINPUT"))))
 
 ;; Error pages
 
