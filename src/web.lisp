@@ -30,6 +30,7 @@
                                  (char= #\` char))
                           collect #\\ and collect char
                           else collect char)))
+
 ;; sanitized-input list -> list
 ;; Construct a plist from an alist containing post or get parameters given from a request
 (defun sanitize-input (parameters)
@@ -58,16 +59,14 @@
 (defun add-new-record (table-name user-input search-column)
   (let* ((sanitized-user-input (sanitize-input user-input))
          (new-id 'nil))
-    (if sanitized-user-input
-        (progn (with-connection (db)
-                 (execute (create-insert-statement table-name sanitized-user-input))
-                 (setf new-id (getf (retrieve-one
-                                     (select :id
-                                             (from table-name)
-                                             (where (:= search-column (getf sanitized-user-input search-column)))))
-                                    :id)))
-               (render-json `(:|status| "success" :|newid| ,new-id)))
-        (render-json '(:|status| "error" :|code| "ENONAME")))))
+    (with-connection (db)
+      (execute (create-insert-statement table-name sanitized-user-input))
+      (setf new-id (getf (retrieve-one
+                          (select :id
+                                  (from table-name)
+                                  (where (:= search-column (getf sanitized-user-input search-column)))))
+                         :id)))
+    (render-json `(:|status| "success" :|newid| ,new-id))))
 
 ;;Have an optional argument to sort-by
 (defmacro retrieve-all-from-table (table-name &body other-clauses)
@@ -116,7 +115,8 @@
                                  :systems initial-systems-listing))))
 
 (defroute ("/games/" :method :get) (&key |id|)
-  (if |id|
+  (if (and |id|
+           (numberp |id|))
       (flet ((extract-if-single (suspect-list)
                ;;This was written in light of the datafly bug I found concerning single item lists
                (if (= (length suspect-list) 1)
@@ -147,95 +147,110 @@
                                       related-companies
                                       systems
                                       genres
-                                      companies)))))))
+                                      companies)))))
+      (render-json `(:|status| "error" :|code| "ENOID"))))
                                 
-          
+(defun has-required-fields-p (required-arguments actual-arguments)
+  (not (member 'nil (map 'list
+                         #'(lambda (required-argument)
+                             (cdr (assoc required-argument actual-arguments :test #'string=)))
+                         required-arguments))))
+       
 
 ;;POST
 (defroute ("/company/" :method :post) (&key _parsed)
-  (add-new-record :companies
-                  _parsed
-                  :name))
+  (if (has-required-fields-p '("name" "is_manufacturer") _parsed)
+      (add-new-record :companies
+                      _parsed
+                      :name)
+      (render-json `(:|status| "error" :|code| "EMALFORMEDINPUT"))))
 
 (defroute ("/genre/" :method :post) (&key _parsed)
-  (add-new-record :genres
-                  _parsed
-                  :name))
+  (if (has-required-fields-p '("name") _parsed)
+      (add-new-record :genres
+                      _parsed
+                      :name)
+      (render-json `(:|status| "error" :|code| "EMALFORMEDINPUT"))))
 
 (defroute ("/system/" :method :post) (&key _parsed)
-  (add-new-record :systems
-                  _parsed
-                  :name))
+  (if (has-required-fields-p '("name" "manufacturer_id") _parsed)
+      (add-new-record :systems
+                      _parsed
+                      :name)
+      (render-json `(:|status| "error" :|code| "EMALFORMEDINPUT"))))
 
 (defroute ("/games/" :method :post) (&key |genres| |companies| _parsed)
   (if (and |genres|
            |companies|
-           _parsed)
+           (has-required-fields-p '("name" "region" "has_manual" "has_box" "quantity" "system_id") _parsed))
       (let ((gameparameters (sanitize-input (filter-parameters _parsed '("genres" "companies"))))
             (new-game-id 'nil))
         (with-connection (db)
           (execute
            (create-insert-statement :games gameparameters))
           (setf new-game-id (getf (retrieve-one
-                              (select :id
-                                      (from :games)
-                                      (where (:= :name (getf gameparameters :name)))))
+                                   (select :id
+                                           (from :games)
+                                           (where (:= :name (getf gameparameters :name)))))
                                   :id))
           (loop for company-id in |companies| do
                (execute (create-insert-statement :games_companies_pivot `(:game_id ,new-game-id  :company_id ,company-id))))
           (loop for genre-id in |genres| do
                (execute (create-insert-statement :games_genres_pivot `(:game_id ,new-game-id :genre_id ,genre-id))))
-          (render-json `(:|status| "success"  :|newid| ,new-game-id)))
-        (render-json '(:|status| "error" :|code| "ENOTFILLED")))))
+          (render-json `(:|status| "success"  :|newid| ,new-game-id))))
+      (render-json '(:|status| "error" :|code| "EMALFORMEDINPUT"))))
 
 
-;; Unfortunately there isn't a very clean way to apply the :and operator to a list
 (defroute ("/search-games-ajax/" :method :post) (&key |genres| |companies| _parsed)
   ;;We sanitize the values which are then placed in an and list
-  (flet ((create-or-list (id-column-name id-list)
-           (list (append '(:or) (map 'list
-                                     #'(lambda (id)
-                                         `(:= ,id-column-name ,id))
-                                     id-list)))))
-    (let* ((game-parameters (remove 'nil
-                                    (map 'list
-                                         #'(lambda (parameter)
-                                             (let ((keyword-symbol (intern (string-upcase (car parameter)) :keyword)))
-                                               (if (and (not (eql keyword-symbol :companies))
-                                                        (not (eql keyword-symbol :genres)))
-                                                   (if (eql :name keyword-symbol)
-                                                       `(:like :games.name ,(concatenate 'string
-                                                                                         "%"
-                                                                                         (sanitize-string (cdr parameter))
-                                                                                         "%"))
-                                                       `(:= ,keyword-symbol ,(sanitize-string (cdr parameter)))))))
-                                         _parsed)))
-           (company-parameters (if |companies| (create-or-list :company_id |companies|)))
-           (genre-parameters (if |genres| (create-or-list :genre_id |genres|)))
-           (where-arguments (append '(:and)
-                                    game-parameters
-                                    company-parameters
-                                    genre-parameters))
-           (result-set 'nil))
-      (with-connection (db)
-        (setf result-set
-              (retrieve-all
-               (select (:games.*
-                        (:as :systems.name :system_name)
-                        (:as :genres.id :genre_id)
-                        (:as :genres.name :genre_name)
-                        (:as :companies.id :company_id)
-                        (:as :companies.name :companies_name))
-                       (from :games)
-                       (inner-join :systems :on (:= :games.system_id :systems.id))
-                       (inner-join :games_genres_pivot :on (:= :games.id :games_genres_pivot.game_id ))
-                       (inner-join :genres :on (:= :games_genres_pivot.genre_id :genres.id))
-                       (inner-join :games_companies_pivot :on (:= :games_companies_pivot.game_id :games.id))
-                       (inner-join :companies :on (:= :games_companies_pivot.company_id :companies.id))
-                       (where where-arguments)
-                       (group-by :games.id)))))
-      (setf (headers *response* :content-type) "application/json")
-      (encode-json-custom result-set))))
+  (if (or |genres|
+          |companies|
+          _parsed)
+      (flet ((create-or-list (id-column-name id-list)
+               (list (append '(:or) (map 'list
+                                         #'(lambda (id)
+                                             `(:= ,id-column-name ,id))
+                                         id-list)))))
+        (let* ((game-parameters (remove 'nil
+                                        (map 'list
+                                             #'(lambda (parameter)
+                                                 (let ((keyword-symbol (intern (string-upcase (car parameter)) :keyword)))
+                                                   (if (and (not (eql keyword-symbol :companies))
+                                                            (not (eql keyword-symbol :genres)))
+                                                       (if (eql :name keyword-symbol)
+                                                           `(:like :games.name ,(concatenate 'string
+                                                                                             "%"
+                                                                                             (sanitize-string (cdr parameter))
+                                                                                             "%"))
+                                                           `(:= ,keyword-symbol ,(sanitize-string (cdr parameter)))))))
+                                             _parsed)))
+               (company-parameters (if |companies| (create-or-list :company_id |companies|)))
+               (genre-parameters (if |genres| (create-or-list :genre_id |genres|)))
+               (where-arguments (append '(:and)
+                                        game-parameters
+                                        company-parameters
+                                        genre-parameters))
+               (result-set 'nil))
+          (with-connection (db)
+            (setf result-set
+                  (retrieve-all
+                   (select (:games.*
+                            (:as :systems.name :system_name)
+                            (:as :genres.id :genre_id)
+                            (:as :genres.name :genre_name)
+                            (:as :companies.id :company_id)
+                            (:as :companies.name :companies_name))
+                           (from :games)
+                           (inner-join :systems :on (:= :games.system_id :systems.id))
+                           (inner-join :games_genres_pivot :on (:= :games.id :games_genres_pivot.game_id ))
+                           (inner-join :genres :on (:= :games_genres_pivot.genre_id :genres.id))
+                           (inner-join :games_companies_pivot :on (:= :games_companies_pivot.game_id :games.id))
+                           (inner-join :companies :on (:= :games_companies_pivot.company_id :companies.id))
+                           (where where-arguments)
+                           (group-by :games.id)))))
+          (setf (headers *response* :content-type) "application/json")
+          (encode-json-custom result-set)))
+      (render-json `(:|status| "error" :|code| "EMALFORMEDINPUT"))))
 
 ;; PUT
 (defroute ("/games/" :method :put) (&key |id| |genres| |companies| _parsed)
@@ -255,6 +270,8 @@
                         (where (:= :game_id |id|))))
           (populate-pivot-tables |id| |genres| |companies|))
         (render-json '(:|status| "success")))))
+
+;; DELETE
 
 ;; Error pages
 
