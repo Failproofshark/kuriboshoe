@@ -307,16 +307,18 @@
           (render-json '(:|status| "error" :|code| "ENOTINT"))))
       (render-json '(:|status| "error" :|code| "EMALFORMEDINPUT"))))
 
-(defroute ("/system/" :method :put) (&key |id| _parsed)
-  (if (and |id|
-           (has-required-fields-p '("name" "manufacturerid") _parsed))
-      (handler-case (let ((parsed-id (guarantee-number |id|)))
-                      (update-record :systems _parsed parsed-id)
+(defun update-table-entry (id table-name required-fields user-input)
+  (if (and id
+           (has-required-fields-p required-fields user-input))
+      (handler-case (let ((parsed-id (guarantee-number id)))
+                      (update-record table-name user-input parsed-id)
                       (render-json '(:|status| "success")))
         (sb-int:simple-parse-error ()
           (render-json '(:|status| "error" :|code| "ENOTINT"))))
       (render-json '(:|status| "error" :|code| "EMALFORMEDINPUT"))))
 
+(defroute ("/system/" :method :put) (&key |id| _parsed)
+  (update-table-entry |id| :systems '("name" "manufacturerid") _parsed))
                           
 ;; DELETE
 (defun delete-from-table (id table)
@@ -342,6 +344,9 @@
       (render-json '(:|status| "error" :|code| "EMALFORMEDINPUT"))))
 
 (defroute ("/system/" :method :delete) (&key |id|)
+  (delete-from-table |id| :systems))
+
+(defroute ("/company/" :method :delete) (&key |id|)
   (delete-from-table |id| :systems))
 
 ;; Error pages
