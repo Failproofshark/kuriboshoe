@@ -179,6 +179,13 @@
        
 
 ;;POST
+(defun add-to-table (table-name required-fields user-input)
+    (if (has-required-fields-p required-fields user-input)
+      (add-new-record table-name
+                      user-input
+                      :name)
+      (render-json `(:|status| "error" :|code| "EMALFORMEDINPUT"))))
+
 (defroute ("/company/" :method :post) (&key _parsed)
   (if (has-required-fields-p '("name" "is_manufacturer") _parsed)
       (add-new-record :companies
@@ -194,12 +201,7 @@
       (render-json `(:|status| "error" :|code| "EMALFORMEDINPUT"))))
 
 (defroute ("/system/" :method :post) (&key _parsed)
-  (print _parsed)
-  (if (has-required-fields-p '("name" "manufacturerid") _parsed)
-      (add-new-record :systems
-                      _parsed
-                      :name)
-      (render-json `(:|status| "error" :|code| "EMALFORMEDINPUT"))))
+  (add-to-table :systems '("name" "manufacturerid") _parsed))
 
 (defroute ("/games/" :method :post) (&key |genres| |companies| _parsed)
   (if (and |genres|
