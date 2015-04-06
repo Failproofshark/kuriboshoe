@@ -1,50 +1,54 @@
 var GameTrackerAdmin = {};
 
-//Move things like creating an option and what not into the models. Like "value name" pairs and filter, adding item and autosorting etc.
+GameTrackerAdmin.Model = function(defaultEmptySet, backsideUrl) {
+    return function (initialValues) {
+        if (initialValues) {
+            this.attributes = (_.isEmpty(initialValues.id)) ? _.extend({id:null}, _.clone(initialValues,true)) : _.clone(initialValues);
+        } else {
+            this.attributes = defaultEmptySet;
+        }
+
+        this.backsideUrl = backsideUrl;
+
+        this.save = function() {
+            var self = this;
+            return m.request({method: "POST",
+                              url: self.backsideUrl,
+                              data:_.omit(self.attributes, "id")})
+                .then(function(response) {
+                    self.attributes.id = response.newid;
+                    return response;
+                });
+        };
+
+        this.update = function(newAttributes) {
+            var self = this;
+            _.forIn(newAttributes, function(value, key) {
+                self.attributes[key] = value;
+            });
+            return m.request({method: "PUT",
+                              url: self.backsideUrl,
+                              data: self.attributes});
+        };
+
+        this.delete = function() {
+            var self = this;
+            return m.request({method: "DELETE",
+                              url: self.backsideUrl,
+                              data: {id: self.attributes.id}});
+        };
+
+    };
+};
 GameTrackerAdmin.Company = function(initialValues) {
     this.id = m.prop(initialValues.id);
     this.name = m.prop(initialValues.name);
 };
 
-GameTrackerAdmin.System = function(initialValues) {
-    if (initialValues) {
-        this.attributes = (_.isEmpty(initialValues.id)) ? _.extend({id:null}, _.clone(initialValues,true)) : _.clone(initialValues);
-    } else {
-        this.attributes = { id: null,
-                            name: "",
-                            manufacturerid: null
-                          };
-    }
-
-    this.save = function() {
-        var self = this;
-        return m.request({method: "POST",
-                          url: "/system/",
-                          data:_.omit(this.attributes, "id")})
-            .then(function(response) {
-                self.attributes.id = response.newid;
-                return response;
-            });
-    };
-
-    this.update = function(newAttributes) {
-        var self = this;
-        _.forIn(newAttributes, function(value, key) {
-            self.attributes[key] = value;
-        });
-        return m.request({method: "PUT",
-                          url: "/system/",
-                          data: this.attributes});
-    };
-
-    this.delete = function() {
-        var self = this;
-        return m.request({method: "DELETE",
-                          url: "/system/",
-                          data: {id: self.attributes.id}});
-    };
-
-};
+GameTrackerAdmin.System = GameTrackerAdmin.Model({ id: null,
+                                                   name: "",
+                                                   manufacturerid: null },
+                                                 "/system/");
 
 GameTrackerAdmin.vm = new function() {
     var vm = {};
@@ -85,7 +89,7 @@ GameTrackerAdmin.vm = new function() {
         this.search = function() { /*empty*/ };
     };
     vm.init = function() {
-        vm.formMode = "update";
+        vm.formMode = "delete";
         vm.selectScreenState = "system";
         
         //This is used as a stack;
