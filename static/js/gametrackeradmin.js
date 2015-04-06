@@ -1,29 +1,105 @@
 var GameTrackerAdmin = {};
 
 //Move things like creating an option and what not into the models. Like "value name" pairs and filter, adding item and autosorting etc.
-var Company = function(initialValues) {
-    var id = m.prop(initialValues.id);
-    var name = m.prop(initialValues.name);
+GameTrackerAdmin.Company = function(initialValues) {
+    this.id = m.prop(initialValues.id);
+    this.name = m.prop(initialValues.name);
 };
 
-var System = function(initialValues) {
-    var id = m.prop(initialValues.id);
-    var name = m.prop(initialValues.name);
-    var manufacturerId = m.prop(initialValues.manufacturerId);
+GameTrackerAdmin.System = function(initialValues) {
+    if (initialValues) {
+        this.attributes = (_.isEmpty(initialValues.id)) ? _.extend({id:null}, _.clone(initialValues,true)) : _.clone(initialValues);
+    } else {
+        this.attributes = { id: null,
+                            name: "",
+                            manufacturerid: null
+                          };
+    }
+
+    this.save = function() {
+        var self = this;
+        return m.request({method: "POST",
+                          url: "/system/",
+                          data:_.omit(this.attributes, "id")})
+            .then(function(response) {
+                self.attributes.id = response.newid;
+                return response;
+            });
+    };
+
+    this.update = function(newAttributes) {
+        var self = this;
+        _.forIn(newAttributes, function(value, key) {
+            self.attributes[key] = value;
+        });
+        return m.request({method: "PUT",
+                          url: "/system/",
+                          data: this.attributes});
+    };
+
+    this.delete = function() {
+        var self = this;
+        return m.request({method: "DELETE",
+                          url: "/system/",
+                          data: {id: self.attributes.id}});
+    };
+
 };
 
 GameTrackerAdmin.vm = new function() {
     var vm = {};
+    vm.gameForm = function(fields) {
+        this.fields = fields;
+        this.populateForm = function(model) {
+            var self = this;
+            _.map(model.attributes, function(attributeValue, attributeKey) {
+                if (attributeKey !== "id") {
+                    self.fields[attributeKey](attributeValue);
+                }
+            });
+        };
+        this.clearForm = _.forEach.bind(this, this.fields, function(input) {
+            if (_.isString(input())) {
+                input("");
+            } else if (_.isArray(input())) {
+                input([]);
+            } else if (_.isBoolean(input())){
+                input(false);
+            } else {
+                input(null);
+            }
+        });
+        this.returnFields = function() {
+            return _.mapValues(this.fields, function(field) {
+                if (_.isFinite(Number(field()))) {
+                    return Number(field());
+                } else {
+                    return field();
+                }
+            });
+        };
+        this.submitHandlers = {};
+        this.getSubmitHandler = function(state) {
+            return this.submitHandlers[state];
+        };
+        this.search = function() { /*empty*/ };
+    };
     vm.init = function() {
-        vm.formMode = "search";
+        vm.formMode = "update";
+        vm.selectScreenState = "system";
         
         //This is used as a stack;
-        vm.screenHistory = ["GameFormScreen"];
+        vm.screenHistory = ["SelectScreen"];
+
+        vm.successMessage = "";
+        vm.setErrorMessage = function(code) {
+        };
+        vm.errorMessage = "";
         
         //This data is actually bootstraped and the variable it's copying from is in the template
         vm.companies = companies;
         vm.genres = genres;
-        vm.systems = systems;
+        vm.systems = _.map(systems, function(system) { return new GameTrackerAdmin.System(system); });
         
         vm.shouldDisplayScreen = function(screenName) {
             var displayProperty = "none";
@@ -48,6 +124,7 @@ GameTrackerAdmin.vm = new function() {
                            data: {name: vm.newCompanyName(),
                                   is_manufacturer: vm.isConsoleManufacturer()}})
                     .then(function(response) {
+                        console.log(response);
                         vm.newCompanyName("");
                         vm.isConsoleManufacturer(false);
                     });
@@ -64,6 +141,7 @@ GameTrackerAdmin.vm = new function() {
             if (!_.isEmpty(vm.newGenreName())) {
                 m.request({method: "POST",  url: "/genre/", data: {name: vm.newGenreName()}})
                     .then(function(response) {
+                        console.log(response);
                         vm.newGenreName("");
                     });
             }
@@ -73,28 +151,48 @@ GameTrackerAdmin.vm = new function() {
             vm.newGenreName("");
         });
 
-        vm.newSystemName = m.prop("");
-        vm.newSystemManufacturer = m.prop(null);
-        vm.createNewSystem = function() {
-            if (!_.isEmpty(vm.newSystemName()) && !_.isEmpty(vm.newSystemManufacturer())) {
-                m.request({method: "POST",
-                           url: "/system/",
-                           data:{name: vm.newSystemName(),
-                                 manufacturer_id: vm.newSystemManufacturer()}})
-                .then(function(response) {
-                    console.log(response);
-                    vm.newSystemName("");
-                    vm.newSystemManufacturer(null);
-                });
-            };
+        vm.systemForm = new vm.gameForm({name: m.prop(""),
+                                         manufacturerid: m.prop(null)});
+        vm.systemForm.submitHandlers.search = function () { /*empty*/ };
+        vm.systemForm.submitHandlers.add = function() {
+            vm.successMessage = "";
+            if (!_.isEmpty(vm.systemForm.fields.name()) && !_.isEmpty(vm.systemForm.fields.manufacturerid())) {
+                var newSystem = new GameTrackerAdmin.System(vm.systemForm.returnFields());
+                newSystem.save()
+                    .then(function(response) {
+                        console.log(response);
+                        if (response.status === "success") {
+                            vm.systems.push(newSystem);
+                            vm.successMessage = "The system has been added";
+                            vm.systemForm.clearForm();
+                            console.log("yay!");
+                        } else {
+                            vm.errorMessage = "bad crap";
+                        }
+                    }, function() {
+                        vm.errorMessage = "Internal Server Error";
+                    });
+            }
             return false;
         };
+        vm.currentSystemIndex = null;
+        vm.systemForm.submitHandlers.update = function() {
+            console.log("updating");
+            if (!_.isNull(vm.currentSystemIndex) && !_.isEmpty(vm.systemForm.fields.name()) && !_.isEmpty(vm.systemForm.fields.manufacturerid())) {
+                vm.systems[vm.currentSystemIndex].update(vm.systemForm.returnFields())
+                    .then(function(response) {
+                        console.log(response);
+                        vm.successMessage = "The system has been updated";
+                    });
+            } else {
+                vm.errorMessage = "Please fill in all the fields";
+            }
+            return false;
+        };
+        
         vm.cancelSystemCreation = vm.createBackButton(function() {
-            vm.newSystemName = m.prop("");
-            vm.newSystemManufacturer = m.prop(null);
+            vm.systemForm.clearForm();
         });
-
-        vm.selectedEntity = m.prop("");
 
         //The naming convention seems to have changed (not camel case) but this is because we wish
         //To mirror what we have in the table, mainly for back-end convenience
@@ -115,7 +213,7 @@ GameTrackerAdmin.vm = new function() {
             console.log("running");
             if (!_.isEmpty(vm.gameForm.name()) &&
                 !_.isEmpty(vm.gameForm.region()) &&
-                _.isNumber(Number(vm.gameForm.quantity()))
+                _.isFinite(Number(vm.gameForm.quantity()))
                 && Number(vm.gameForm.quantity()) > 0) {
                 console.log('requestan');
                 m.request({method: "POST",
@@ -156,17 +254,15 @@ GameTrackerAdmin.vm = new function() {
                            url: "/search-games-ajax/",
                            data: completedSet})
                     .then(function(response) {
-                        m.startComputation();
                         //Empty results set returns a single item array with null being that object
                         vm.searchResults = _.remove(response, function(item) { return !_.isNull(item); });
-                        m.endComputation();
                     });
             }
             return false;
         };
         vm.currentGameId = 0;
         vm.initiateEditGameEntry = function(gameId) {
-            if (gameId && _.isNumber(Number(gameId))) {
+            if (gameId && _.isFinite(Number(gameId))) {
                 /* A known limitation with the backend: things we expect to be an array may be a simple object due to the json encoder on the backend
                    not being able to encode single row results correctly
                  */
@@ -180,7 +276,7 @@ GameTrackerAdmin.vm = new function() {
                            data: {id: Number(gameId)}
                           })
                     .then(function(response) {
-                        m.startComputation();
+                        console.log(response);
                         vm.currentGameId = Number(response.id);
                         vm.gameForm.name(response.name);
                         vm.gameForm.blurb(response.blurb);
@@ -194,7 +290,6 @@ GameTrackerAdmin.vm = new function() {
                         vm.gameForm.genres(_.pluck(ensureArray(response.genres), "genreId"));
                         vm.formMode = "update";
                         vm.searchResults = [];
-                        m.endComputation();
                     });
             }
         };
@@ -210,6 +305,51 @@ GameTrackerAdmin.vm = new function() {
             return false;
         };
 
+        vm.deleteGame = function(gameId) {
+            if (gameId && _.isFinite(Number(gameId))) {
+                m.request({method: "DELETE",
+                            url: "/games/",
+                            data: {id: Number(gameId)}})
+                    .then(function(response) {
+                        if (response.status === "success") {
+                            vm.successMessage = "The game has been deleted";
+                            _.remove(vm.searchResults, function(game) { return game.id === Number(gameId); });
+                        }
+                    });
+            }
+        };
+
+        vm.currentSelectEntityId = m.prop(null);
+        vm.generalInitiateEdit = function() {
+            switch (vm.selectScreenState) {
+            case "system":
+                vm.currentSystemIndex = _.findIndex(vm.systems, {attributes: {id: Number(vm.currentSelectEntityId())}});
+                vm.systemForm.populateForm(vm.systems[vm.currentSystemIndex]);
+                vm.screenHistory.unshift("SystemFormScreen");
+                vm.currentSelectEntityId(null);
+                break;
+            };
+            return false;
+        };
+        vm.generalDelete = function() {
+            switch (vm.selectScreenState) {
+            case "system":
+                vm.currentSystemIndex = _.findIndex(vm.systems, {attributes: {id: Number(vm.currentSelectEntityId())}});
+                vm.systems[vm.currentSystemIndex].delete()
+                    .then(function(response) {
+                        if (response.status === "success") {
+                            _.remove(vm.systems, {attributes: {id: Number(vm.currentSelectEntityId())}});
+                            vm.currentSelectEntityId(null);
+                            vm.successMessage = "The system has been deleted";
+                        }
+                    },
+                          function() {
+                              vm.errorMessage = "Internal Server Error";
+                          });
+                break;
+            };
+            return false;
+        };
     };
     return vm;
 };
@@ -259,6 +399,43 @@ select2.view = function(extraArguments, optionSet, isMultiple) {
 
 GameTrackerAdmin.screenCollection = {};
 
+GameTrackerAdmin.screenCollection.SelectScreen = function() {
+    var selectDataSet = function() {
+        var dataSet = [];
+        switch (GameTrackerAdmin.vm.selectScreenState) {
+        case "system":
+            dataSet = _.pluck(GameTrackerAdmin.vm.systems, "attributes");
+            break;
+        };
+        return dataSet;
+    };
+    var placeHolder = function() {
+        var placeholder = "";
+        switch (GameTrackerAdmin.vm.selectScreenState) {
+        case "system":
+            placeholder = "Select A System";
+            break;
+        };
+        return placeholder;
+    };
+    return m("div.row",[
+        m("div.col-xs-12", [
+            m("form", [
+                m("div", [
+                    select2.view({onchange:GameTrackerAdmin.vm.currentSelectEntityId,
+                                  value:GameTrackerAdmin.vm.currentSelectEntityId(),
+                                  select2InitializationOptions:{placeholder:placeHolder()}},
+                                 selectDataSet())
+                ]),
+                m("div", [
+                    m("button.btn.btn-success", {onclick: GameTrackerAdmin.vm.generalInitiateEdit}, "edit"),
+                    m("button.btn.btn-danger", {onclick: GameTrackerAdmin.vm.generalDelete}, "delete"),
+                    m("button.btn.btn-default", {onclick: GameTrackerAdmin.vm.returnToMainForm}, "back")
+                ])])
+        ])
+    ]);
+};
+
 GameTrackerAdmin.screenCollection.AddCompanyScreen = function() {
     return m("div.row",[
         m("div.col-xs-12", [
@@ -290,25 +467,19 @@ GameTrackerAdmin.screenCollection.AddGenreScreen = function() {
     ]);
 };
 
-GameTrackerAdmin.screenCollection.AddSystemScreen = function() {
-    var createManufacturerSet = function() {
-        return _.map(_.filter(GameTrackerAdmin.vm.companies, {'isManufacturer':1}), function(company) {
-            return {value: company.id, text: company.name};
-        });
-    };
-
+GameTrackerAdmin.screenCollection.SystemFormScreen = function() {
     return m("div.row", [
         m("div.col-xs-12", [
-            m("form", [m("input.form-control[type=text]", {placeholder:"System Name", onchange: m.withAttr("value", GameTrackerAdmin.vm.newSystemName), value: GameTrackerAdmin.vm.newSystemName()}),
+            m("form", [m("input.form-control[type=text]", {placeholder:"System Name", onchange: m.withAttr("value", GameTrackerAdmin.vm.systemForm.fields.name), value: GameTrackerAdmin.vm.systemForm.fields.name()}),
                        m("div", [
-                           select2.view({ onchange:GameTrackerAdmin.vm.newSystemManufacturer,
-                                          value:GameTrackerAdmin.vm.newSystemManufacturer(),
+                           select2.view({ onchange:GameTrackerAdmin.vm.systemForm.fields.manufacturerid,
+                                          value:GameTrackerAdmin.vm.systemForm.fields.manufacturerid(),
                                           select2InitializationOptions:{placeholder:"Manufacturer"}},
-                                        createManufacturerSet()),
+                                        _.filter(GameTrackerAdmin.vm.companies, {'isManufacturer':1})),
                            m("u[style=cursor:pointer]", {onclick: GameTrackerAdmin.vm.screenHistory.unshift.bind(GameTrackerAdmin.vm.screenHistory, "AddCompanyScreen")}, "+Add Company")
                        ]),
                        m("div", [
-                           m("button.btn.btn-success", {onclick: GameTrackerAdmin.vm.createNewSystem}, "submit"),
+                           m("button.btn.btn-success", {onclick: GameTrackerAdmin.vm.systemForm.submitHandlers[GameTrackerAdmin.vm.formMode]}, "submit"),
                            m("button.btn.btn-danger", {onclick: GameTrackerAdmin.vm.returnToMainForm}, "cancel")
                        ])])
         ])
@@ -350,7 +521,7 @@ GameTrackerAdmin.screenCollection.GameFormScreen = function() {
                             {style:bgColor},
                             (result.name + " [" + result.region + "] (" + result.systemName + ")")),
                           m("div.col-xs-3", [
-                              m("span.glyphicon.glyphicon-remove.game-search-results-button"),
+                              m("span.glyphicon.glyphicon-remove.game-search-results-button", {onclick:GameTrackerAdmin.vm.deleteGame.bind(GameTrackerAdmin.vm, result.id)}),
                               m("span.glyphicon.glyphicon-pencil.game-search-results-button", {onclick:GameTrackerAdmin.vm.initiateEditGameEntry.bind(GameTrackerAdmin.vm, result.id)}),
                           ])
                          ]);
@@ -423,7 +594,9 @@ GameTrackerAdmin.view = function() {
             return m("div", {style:"display:"+GameTrackerAdmin.vm.shouldDisplayScreen(screenName)}, screenContent());
         });
     };
-    return renderScreens();
+    return [m("div.text-success", GameTrackerAdmin.vm.successMessage),
+            m("div.text-danger", GameTrackerAdmin.vm.errorMessage),
+            renderScreens()];
 };
 
 m.module(document.getElementById("form-insert"), GameTrackerAdmin);

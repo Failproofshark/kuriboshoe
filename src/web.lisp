@@ -56,6 +56,11 @@
           (apply #'set= user-input)
           (where (:= :id id))))
 
+(defun update-record (table-name user-input id)
+  (let ((sanitized-user-input (sanitize-input user-input)))
+    (with-connection (db)
+      (execute (create-update-statement table-name sanitized-user-input id)))))
+
 (defun add-new-record (table-name user-input search-column)
   (let* ((sanitized-user-input (sanitize-input user-input))
          (new-id 'nil))
@@ -100,7 +105,7 @@
   (loop for genre-id in genres do
        (execute (create-insert-statement :games_genres_pivot `(:game_id ,game-id :genre_id ,genre-id)))))
 
-(defun delete-from-table (table-name id)
+(defun create-delete-statement (table-name id)
   (delete-from table-name
                (where (:= :id id))))
 
@@ -189,7 +194,8 @@
       (render-json `(:|status| "error" :|code| "EMALFORMEDINPUT"))))
 
 (defroute ("/system/" :method :post) (&key _parsed)
-  (if (has-required-fields-p '("name" "manufacturer_id") _parsed)
+  (print _parsed)
+  (if (has-required-fields-p '("name" "manufacturerid") _parsed)
       (add-new-record :systems
                       _parsed
                       :name)
@@ -292,26 +298,51 @@
                         (execute
                          (create-update-statement :games game-parameters parsed-game-id))
                         (execute
-                         (delete-from-table :games_genres_pivot parsed-game-id))
+                         (create-delete-statement :games_genres_pivot parsed-game-id))
                         (execute
-                         (delete-from-table :games_companies_pivot parsed-game-id))
+                         (create-delete-statement :games_companies_pivot parsed-game-id))
                         (populate-pivot-tables parsed-game-id parsed-genre-ids parsed-company-ids)
                         (render-json '(:|status| "success"))))
         (sb-int:simple-parse-error ()
           (render-json '(:|status| "error" :|code| "ENOTINT"))))
       (render-json '(:|status| "error" :|code| "EMALFORMEDINPUT"))))
 
+(defroute ("/system/" :method :put) (&key |id| _parsed)
+  (if (and |id|
+           (has-required-fields-p '("name" "manufacturerid") _parsed))
+      (handler-case (let ((parsed-id (guarantee-number |id|)))
+                      (update-record :systems _parsed parsed-id)
+                      (render-json '(:|status| "success")))
+        (sb-int:simple-parse-error ()
+          (render-json '(:|status| "error" :|code| "ENOTINT"))))
+      (render-json '(:|status| "error" :|code| "EMALFORMEDINPUT"))))
+
+                          
 ;; DELETE
+(defun delete-from-table (id table)
+    (if id
+      (handler-case (let ((parsed-id (guarantee-number id)))
+                      (with-connection (db)
+                        (execute
+                         (create-delete-statement table parsed-id)))
+                      (render-json '(:|status| "success")))
+        (sb-int:simple-parse-error ()
+          (render-json '(:|status| "error" :|code| "ENOTINT"))))
+      (render-json '(:|status| "error" :|code| "EMALFORMEDINPUT"))))
+
 (defroute ("/games/" :method :delete) (&key |id|)
   (if |id|
       (handler-case (let ((parsed-game-id (guarantee-number |id|)))
                       (with-connection (db)
                         (execute
-                         (delete-from-table :games parsed-game-id)))
+                         (create-delete-statement :games parsed-game-id)))
                       (render-json '(:|status| "success")))
         (sb-int:simple-parse-error ()
           (render-json '(:|status| "error" :|code| "ENOTINT"))))
       (render-json '(:|status| "error" :|code| "EMALFORMEDINPUT"))))
+
+(defroute ("/system/" :method :delete) (&key |id|)
+  (delete-from-table |id| :systems))
 
 ;; Error pages
 
