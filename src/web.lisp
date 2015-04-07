@@ -157,9 +157,6 @@
                                                                                                          (where (:= :game_id game-id))))))
                           (setf related-companies (list :companies (extract-if-single (retrieve-all-from-table :games_companies_pivot
                                                                                                                (where (:= :game_id game-id))))))
-                          (setf systems (list :new-systems (extract-if-single (retrieve-all-from-table :systems))))
-                          (setf genres (list :new-genres (extract-if-single (retrieve-all-from-table :genres))))
-                          (setf companies (list :new-companies (extract-if-single (retrieve-all-from-table :companies))))
                           (setf (headers *response* :contente-type) "application/json")
                           (encode-json-custom (append game-table-record
                                                       related-genres
@@ -287,7 +284,7 @@
   (if (and |id|
            |genres|
            |companies|
-           (has-required-fields-p '("name" "region" "has_manual" "has_box" "quantity" "systemid") _parsed))
+           (has-required-fields-p '("name" "region" "hasmanual" "hasbox" "quantity" "systemid") _parsed))
       (handler-case (let ((game-parameters (sanitize-input (filter-parameters _parsed '("genres" "companies"))))
                           (parsed-company-ids (parse-string-ints |companies|))
                           (parsed-genre-ids (parse-string-ints |genres|))
@@ -296,9 +293,11 @@
                         (execute
                          (create-update-statement :games game-parameters parsed-game-id))
                         (execute
-                         (create-delete-statement :games_genres_pivot parsed-game-id))
+                         (delete-from :games_genres_pivot
+                                      (where (:= :game_id parsed-game-id))))
                         (execute
-                         (create-delete-statement :games_companies_pivot parsed-game-id))
+                         (delete-from :games_companies_pivot
+                                      (where (:= :game_id parsed-game-id))))
                         (populate-pivot-tables parsed-game-id parsed-genre-ids parsed-company-ids)
                         (render-json '(:|status| "success"))))
         (sb-int:simple-parse-error ()
