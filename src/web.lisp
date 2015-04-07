@@ -187,18 +187,10 @@
       (render-json `(:|status| "error" :|code| "EMALFORMEDINPUT"))))
 
 (defroute ("/company/" :method :post) (&key _parsed)
-  (if (has-required-fields-p '("name" "is_manufacturer") _parsed)
-      (add-new-record :companies
-                      _parsed
-                      :name)
-      (render-json `(:|status| "error" :|code| "EMALFORMEDINPUT"))))
+  (add-to-table :companies '("name" "ismanufacturer") _parsed))
 
 (defroute ("/genre/" :method :post) (&key _parsed)
-  (if (has-required-fields-p '("name") _parsed)
-      (add-new-record :genres
-                      _parsed
-                      :name)
-      (render-json `(:|status| "error" :|code| "EMALFORMEDINPUT"))))
+  (add-to-table :genres '("name")))
 
 (defroute ("/system/" :method :post) (&key _parsed)
   (add-to-table :systems '("name" "manufacturerid") _parsed))
@@ -321,6 +313,12 @@
 
 (defroute ("/system/" :method :put) (&key |id| _parsed)
   (update-table-entry |id| :systems '("name" "manufacturerid") _parsed))
+
+(defroute ("/company/" :method :put) (&key |id| _parsed)
+  (update-table-entry |id| :companies '("name" "ismanufacturer") _parsed))
+
+(defroute ("/genre/" :method :put) (&key |id| _parsed)
+  (update-table-entry |id| :genres '("name") _parsed))
                           
 ;; DELETE
 (defun delete-from-table (id table)
@@ -349,7 +347,10 @@
   (delete-from-table |id| :systems))
 
 (defroute ("/company/" :method :delete) (&key |id|)
-  (delete-from-table |id| :systems))
+  (delete-from-table |id| :companies))
+
+(defroute ("/genre/" :method :delete) (&key |id|)
+  (delete-from-table |id| :genres))
 
 ;; Error pages
 
