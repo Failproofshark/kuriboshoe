@@ -190,7 +190,7 @@
   (add-to-table :companies '("name" "ismanufacturer") _parsed))
 
 (defroute ("/genre/" :method :post) (&key _parsed)
-  (add-to-table :genres '("name")))
+  (add-to-table :genres '("name") _parsed))
 
 (defroute ("/system/" :method :post) (&key _parsed)
   (add-to-table :systems '("name" "manufacturerid") _parsed))

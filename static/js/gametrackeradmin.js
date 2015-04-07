@@ -51,6 +51,11 @@ GameTrackerAdmin.System = GameTrackerAdmin.Model({ id: null,
                                                    manufacturerid: null },
                                                  "/system/");
 
+GameTrackerAdmin.Genre = GameTrackerAdmin.Model({ id: null,
+                                                   name: "",
+                                                   manufacturerid: null },
+                                                 "/genre/");
+
 GameTrackerAdmin.vm = new function() {
     var vm = {};
     vm.TrackerForm = function(fields) {
@@ -95,7 +100,7 @@ GameTrackerAdmin.vm = new function() {
     };
     vm.init = function() {
         vm.formMode = "add";
-        vm.selectScreenState = "company";
+        vm.selectScreenState = "genre";
         
         //This is used as a stack;
         vm.screenHistory = ["SelectScreen"];
@@ -112,7 +117,7 @@ GameTrackerAdmin.vm = new function() {
         
         //This data is actually bootstraped and the variable it's copying from is in the template
         vm.companies = _.map(companies, function(company) { return new GameTrackerAdmin.Company(company); });
-        vm.genres = genres;
+        vm.genres = _.map(genres, function(genre) { return new GameTrackerAdmin.Genre(genre); });
         vm.systems = _.map(systems, function(system) { return new GameTrackerAdmin.System(system); });
         
         vm.shouldDisplayScreen = function(screenName) {
@@ -162,7 +167,7 @@ GameTrackerAdmin.vm = new function() {
                 vm.companies[vm.currentCompanyIndex].update(vm.companyForm.returnFields())
                     .then(function(response) {
                         vm.successMessage = "The company has been updated";
-                    });
+                    }, vm.reportInternalError);
             } else {
                 vm.errorMessage = "Please enter the name of the company";
             }
@@ -174,15 +179,37 @@ GameTrackerAdmin.vm = new function() {
             vm.isConsoleManufacturer(false);
         });
 
-        vm.newGenreName = m.prop("");
-        vm.createNewGenre = function() {
-            if (!_.isEmpty(vm.newGenreName())) {
-                m.request({method: "POST",  url: "/genre/", data: {name: vm.newGenreName()}})
+        vm.genreForm = new vm.TrackerForm({name: m.prop("")});
+        vm.genreForm.submitHandlers.add = function() {
+            vm.clearMessages();
+            if (!_.isEmpty(vm.genreForm.fields.name())) {
+                var newGenre = new GameTrackerAdmin.Genre(vm.genreForm.returnFields());
+                newGenre.save()
                     .then(function(response) {
-                        console.log(response);
-                        vm.newGenreName("");
-                    });
+                        if (response.status === "success") {
+                            vm.genres.push(newGenre);
+                            vm.successMessage = "The genre has been added";
+                            vm.genreForm.clearForm();
+                        } else {
+                            vm.errorMessage = "Could not add the genre";
+                        }
+                    }, vm.reportInternalError);
+            } else {
+                vm.errorMessage = "Please enter the name of the genre";
             }
+            return false;
+        };
+        vm.currentGenreIndex = null;
+        vm.genreForm.submitHandlers.update = function() {
+            vm.clearMessages();
+            if (!_.isNull(vm.currentGenreIndex) && !_.isEmpty(vm.genreForm.fields.name())) {
+                vm.genres[vm.currentGenreIndex].update(vm.genreForm.returnFields())
+                    .then(function(response) {
+                        vm.successMessage = "The genre has been updated";
+                    }, vm.reportInternalError);
+            } else {
+                vm.errorMessage = "Please enter the name of the genre";
+            };
             return false;
         };
         vm.cancelGenreCreation = vm.createBackButton(function() {
@@ -363,15 +390,20 @@ GameTrackerAdmin.vm = new function() {
                 vm.currentSystemIndex = _.findIndex(vm.systems, {attributes: {id: Number(vm.currentSelectEntityId())}});
                 vm.systemForm.populateForm(vm.systems[vm.currentSystemIndex]);
                 vm.screenHistory.unshift("SystemFormScreen");
-                vm.currentSelectEntityId(null);
                 break;
             case "company":
                 vm.currentCompanyIndex = _.findIndex(vm.companies, {attributes: {id: Number(vm.currentSelectEntityId())}});
                 vm.companyForm.populateForm(vm.companies[vm.currentCompanyIndex]);
                 vm.screenHistory.unshift("CompanyFormScreen");
-                vm.currentSelectEntityId(null);
+                break;
+            case "genre":
+                vm.currentGenreIndex = _.findIndex(vm.genres, {attributes: {id: Number(vm.currentSelectEntityId())}});
+                vm.genreForm.populateForm(vm.genres[vm.currentGenreIndex]);
+                vm.screenHistory.unshift("GenreFormScreen");
+
                 break;
             };
+            vm.currentSelectEntityId(null);
             return false;
         };
         vm.generalDelete = function() {
@@ -398,6 +430,17 @@ GameTrackerAdmin.vm = new function() {
                     },
                           vm.reportInternalError);
                 break;
+            case "genre":
+                vm.currentGenreIndex = _.findIndex(vm.genres, {attributes: {id: Number(vm.currentSelectEntityId())}});
+                vm.genres[vm.currentGenreIndex].delete()
+                    .then(function(response) {
+                        if (response.status === "success") {
+                            _.remove(vm.genres, {attributes: {id: Number(vm.currentSelectEntityId())}});
+                            vm.successMessage = "The genre has been deleted";
+                        }
+                    },
+                          vm.reportInternalError);
+                break;                
             };
             vm.currentSelectEntityId(null);
             return false;
@@ -461,6 +504,9 @@ GameTrackerAdmin.screenCollection.SelectScreen = function() {
         case "company":
             dataSet = _.pluck(GameTrackerAdmin.vm.companies, "attributes");
             break;
+        case "genre":
+            dataSet = _.pluck(GameTrackerAdmin.vm.genres, "attributes");
+            break;
         };
         return dataSet;
     };
@@ -472,6 +518,9 @@ GameTrackerAdmin.screenCollection.SelectScreen = function() {
             break;
         case "company":
             placeholder = "Select A Company";
+            break;
+        case "genre":
+            placeholder = "Select A Genre";
             break;
         };
         return placeholder;
@@ -512,12 +561,12 @@ GameTrackerAdmin.screenCollection.CompanyFormScreen = function() {
     ]);
 };
 
-GameTrackerAdmin.screenCollection.AddGenreScreen = function() {
+GameTrackerAdmin.screenCollection.GenreFormScreen = function() {
     return m("div.row", [
         m("div.col-xs-12", [
-            m("form", [ m("input.form-control[type=text]", {placeholder:"Genre Name", onchange: m.withAttr("value", GameTrackerAdmin.vm.newGenreName), value: GameTrackerAdmin.vm.newGenreName()}),
+            m("form", [ m("input.form-control[type=text]", {placeholder:"Genre Name", onchange: m.withAttr("value", GameTrackerAdmin.vm.genreForm.fields.name), value: GameTrackerAdmin.vm.genreForm.fields.name()}),
                         m("div", [
-                            m("button.btn.btn-success", {onclick: GameTrackerAdmin.vm.createNewGenre}, "submit"),
+                            m("button.btn.btn-success", {onclick: GameTrackerAdmin.vm.genreForm.submitHandlers[GameTrackerAdmin.vm.formMode]}, "submit"),
                             m("button.btn.btn-danger", {onclick: GameTrackerAdmin.vm.returnToMainForm}, "cancel")
                         ])
                       ])
