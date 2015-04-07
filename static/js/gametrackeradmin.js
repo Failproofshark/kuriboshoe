@@ -103,17 +103,20 @@ GameTrackerAdmin.vm = new function() {
         vm.selectScreenState = "genre";
         
         //This is used as a stack;
-        vm.screenHistory = ["SelectScreen"];
+        vm.screenHistory = ["SystemFormScreen"];
 
         vm.successMessage = "";
         vm.errorMessage = "";
         vm.reportInternalError = function() {
             vm.errorMessage = "Internal Server Error";
+            vm.isLoading = false;
         };
         vm.clearMessages = function() {
             vm.successMessage = "";
             vm.errorMessage = "";
         };
+
+        vm.isLoading = false;
         
         //This data is actually bootstraped and the variable it's copying from is in the template
         vm.companies = _.map(companies, function(company) { return new GameTrackerAdmin.Company(company); });
@@ -134,6 +137,11 @@ GameTrackerAdmin.vm = new function() {
             };
         };
 
+        vm.returnToMainForm = function(whichForm) {
+            vm[whichForm].clearForm();
+            vm.screenHistory.shift();
+        };
+
         vm.companyForm = new vm.TrackerForm({name: m.prop(""),
                                            ismanufacturer: m.prop(false)
                                           });
@@ -141,6 +149,7 @@ GameTrackerAdmin.vm = new function() {
          * or creating a child object
          */
         vm.companyForm.submitHandlers.add = function() {
+            vm.isLoading = true;
             vm.clearMessages();
             if (!_.isEmpty(vm.companyForm.fields.name())) {
                 var newCompany = new GameTrackerAdmin.Company(vm.companyForm.returnFields());
@@ -157,11 +166,13 @@ GameTrackerAdmin.vm = new function() {
             } else {
                 vm.errorMessage = "Please enter the name of the company";
             }
+            vm.isLoading = false;
             return false;
         };
 
         vm.currentCompanyIndex = null;
         vm.companyForm.submitHandlers.update = function() {
+            vm.isLoading = true;
             vm.clearMessages();
             if (!_.isNull(vm.currentCompanyIndex) && !_.isEmpty(vm.companyForm.fields.name())) {
                 vm.companies[vm.currentCompanyIndex].update(vm.companyForm.returnFields())
@@ -171,16 +182,13 @@ GameTrackerAdmin.vm = new function() {
             } else {
                 vm.errorMessage = "Please enter the name of the company";
             }
+            vm.isLoading = false;
             return false;
         };
         
-        vm.cancelCompanyCreation = vm.createBackButton(function() {
-            vm.newCompanyName("");
-            vm.isConsoleManufacturer(false);
-        });
-
         vm.genreForm = new vm.TrackerForm({name: m.prop("")});
         vm.genreForm.submitHandlers.add = function() {
+            vm.isLoading = true;
             vm.clearMessages();
             if (!_.isEmpty(vm.genreForm.fields.name())) {
                 var newGenre = new GameTrackerAdmin.Genre(vm.genreForm.returnFields());
@@ -197,10 +205,12 @@ GameTrackerAdmin.vm = new function() {
             } else {
                 vm.errorMessage = "Please enter the name of the genre";
             }
+            vm.isLoading = false;
             return false;
         };
         vm.currentGenreIndex = null;
         vm.genreForm.submitHandlers.update = function() {
+            vm.isLoading = true;
             vm.clearMessages();
             if (!_.isNull(vm.currentGenreIndex) && !_.isEmpty(vm.genreForm.fields.name())) {
                 vm.genres[vm.currentGenreIndex].update(vm.genreForm.returnFields())
@@ -210,15 +220,14 @@ GameTrackerAdmin.vm = new function() {
             } else {
                 vm.errorMessage = "Please enter the name of the genre";
             };
+            vm.isLoading = false;
             return false;
         };
-        vm.cancelGenreCreation = vm.createBackButton(function() {
-            vm.newGenreName("");
-        });
 
         vm.systemForm = new vm.TrackerForm({name: m.prop(""),
                                          manufacturerid: m.prop(null)});
         vm.systemForm.submitHandlers.add = function() {
+            vm.isLoading = true;
             vm.clearMessages();
             if (!_.isEmpty(vm.systemForm.fields.name()) && !_.isEmpty(vm.systemForm.fields.manufacturerid())) {
                 var newSystem = new GameTrackerAdmin.System(vm.systemForm.returnFields());
@@ -229,9 +238,10 @@ GameTrackerAdmin.vm = new function() {
                             vm.systems.push(newSystem);
                             vm.successMessage = "The system has been added";
                             vm.systemForm.clearForm();
-                            console.log("yay!");
+                            vm.isLoading = false;
                         } else {
                             vm.errorMessage = "bad crap";
+                            vm.isLoading = false;
                         }
                     }, vm.reportInternalError);
             }
@@ -239,24 +249,20 @@ GameTrackerAdmin.vm = new function() {
         };
         vm.currentSystemIndex = null;
         vm.systemForm.submitHandlers.update = function() {
+            vm.isLoading = true;
             vm.clearMessages();
-            console.log("updating");
             if (!_.isNull(vm.currentSystemIndex) && !_.isEmpty(vm.systemForm.fields.name()) && !_.isEmpty(vm.systemForm.fields.manufacturerid())) {
                 vm.systems[vm.currentSystemIndex].update(vm.systemForm.returnFields())
                     .then(function(response) {
-                        console.log(response);
                         vm.successMessage = "The system has been updated";
                     });
             } else {
                 vm.errorMessage = "Please fill in all the fields";
             }
+            vm.isLoading = false;
             return false;
         };
         
-        vm.cancelSystemCreation = vm.createBackButton(function() {
-            vm.systemForm.clearForm();
-        });
-
         //The naming convention seems to have changed (not camel case) but this is because we wish
         //To mirror what we have in the table, mainly for back-end convenience
         //TODO have each form have a namespace for their thingies
@@ -407,10 +413,12 @@ GameTrackerAdmin.vm = new function() {
             return false;
         };
         vm.generalDelete = function() {
+            vm.isLoading = true;
+            var currentIndex;
             switch (vm.selectScreenState) {
             case "system":
-                vm.currentSystemIndex = _.findIndex(vm.systems, {attributes: {id: Number(vm.currentSelectEntityId())}});
-                vm.systems[vm.currentSystemIndex].delete()
+                currentIndex = _.findIndex(vm.systems, {attributes: {id: Number(vm.currentSelectEntityId())}});
+                vm.systems[currentIndex].delete()
                     .then(function(response) {
                         if (response.status === "success") {
                             _.remove(vm.systems, {attributes: {id: Number(vm.currentSelectEntityId())}});
@@ -420,8 +428,8 @@ GameTrackerAdmin.vm = new function() {
                           vm.reportInternalError);
                 break;
             case "company":
-                vm.currentCompanyIndex = _.findIndex(vm.companies, {attributes: {id: Number(vm.currentSelectEntityId())}});
-                vm.companies[vm.currentCompanyIndex].delete()
+                currentIndex = _.findIndex(vm.companies, {attributes: {id: Number(vm.currentSelectEntityId())}});
+                vm.companies[currentIndex].delete()
                     .then(function(response) {
                         if (response.status === "success") {
                             _.remove(vm.companies, {attributes: {id: Number(vm.currentSelectEntityId())}});
@@ -431,8 +439,8 @@ GameTrackerAdmin.vm = new function() {
                           vm.reportInternalError);
                 break;
             case "genre":
-                vm.currentGenreIndex = _.findIndex(vm.genres, {attributes: {id: Number(vm.currentSelectEntityId())}});
-                vm.genres[vm.currentGenreIndex].delete()
+                currentIndex = _.findIndex(vm.genres, {attributes: {id: Number(vm.currentSelectEntityId())}});
+                vm.genres[currentIndex].delete()
                     .then(function(response) {
                         if (response.status === "success") {
                             _.remove(vm.genres, {attributes: {id: Number(vm.currentSelectEntityId())}});
@@ -443,9 +451,11 @@ GameTrackerAdmin.vm = new function() {
                 break;                
             };
             vm.currentSelectEntityId(null);
+            vm.isLoading =false;
             return false;
         };
     };
+
     return vm;
 };
 
@@ -492,9 +502,27 @@ select2.view = function(extraArguments, optionSet, isMultiple) {
              [m("option"),createOptionSet()]);
 };
 
-GameTrackerAdmin.screenCollection = {};
 
+GameTrackerAdmin.screenHelpers = {};
+GameTrackerAdmin.screenHelpers.createButtonDisplayProperties = function(isLoading) {
+    var displayProperties = (isLoading) ? {button:"display:none", preloader:"display:inline"} : {button:"display:inline", preloader:"display:none"};
+    return displayProperties;
+};
+
+GameTrackerAdmin.screenHelpers.createButtonSet = function(isLoading, whichForm) {
+    var displayProperties = GameTrackerAdmin.screenHelpers.createButtonDisplayProperties(isLoading);
+    return m("div", [
+        m("button.btn.btn-success", {style: displayProperties.button,
+                                     onclick: GameTrackerAdmin.vm[whichForm].submitHandlers[GameTrackerAdmin.vm.formMode]}, "submit"),
+        m("button.btn.btn-danger", {style: displayProperties.button,
+                                    onclick: GameTrackerAdmin.vm.returnToMainForm.bind(GameTrackerAdmin.vm, whichForm)}, "cancel"),
+        m("img[src=/images/ajax.gif]", {style:displayProperties.preloader})
+    ]);
+};
+
+GameTrackerAdmin.screenCollection = {};
 GameTrackerAdmin.screenCollection.SelectScreen = function() {
+    var displayProperties = GameTrackerAdmin.screenHelpers.createButtonDisplayProperties(GameTrackerAdmin.vm.isLoading);
     var selectDataSet = function() {
         var dataSet = [];
         switch (GameTrackerAdmin.vm.selectScreenState) {
@@ -535,9 +563,13 @@ GameTrackerAdmin.screenCollection.SelectScreen = function() {
                                  selectDataSet())
                 ]),
                 m("div", [
-                    m("button.btn.btn-success", {onclick: GameTrackerAdmin.vm.generalInitiateEdit}, "edit"),
-                    m("button.btn.btn-danger", {onclick: GameTrackerAdmin.vm.generalDelete}, "delete"),
-                    m("button.btn.btn-default", {onclick: GameTrackerAdmin.vm.returnToMainForm}, "back")
+                    m("button.btn.btn-success", {style: displayProperties.button,
+                                                 onclick: GameTrackerAdmin.vm.generalInitiateEdit}, "edit"),
+                    m("button.btn.btn-danger", {style: displayProperties.button,
+                                                onclick: GameTrackerAdmin.vm.generalDelete}, "delete"),
+                    m("button.btn.btn-default", {style: displayProperties.button,
+                                                 onclick: GameTrackerAdmin.vm.returnToMainForm}, "back"),
+                    m("img[src=/images/ajax.gif]", {style: displayProperties.preloader})
                 ])])
         ])
     ]);
@@ -553,11 +585,9 @@ GameTrackerAdmin.screenCollection.CompanyFormScreen = function() {
                            ]),
                            m("span", "Is this company a console manufacuturer?")
                        ]),
-                       m("div", [
-                           m("button.btn.btn-success", {onclick: GameTrackerAdmin.vm.companyForm.submitHandlers[GameTrackerAdmin.vm.formMode]}, "submit"),
-                           m("button.btn.btn-danger", {onclick: GameTrackerAdmin.vm.returnToMainForm}, "cancel")
-                       ])])
-        ])
+                       GameTrackerAdmin.screenHelpers.createButtonSet(GameTrackerAdmin.vm.isLoading, "companyForm")
+                      ])
+            ])
     ]);
 };
 
@@ -565,10 +595,7 @@ GameTrackerAdmin.screenCollection.GenreFormScreen = function() {
     return m("div.row", [
         m("div.col-xs-12", [
             m("form", [ m("input.form-control[type=text]", {placeholder:"Genre Name", onchange: m.withAttr("value", GameTrackerAdmin.vm.genreForm.fields.name), value: GameTrackerAdmin.vm.genreForm.fields.name()}),
-                        m("div", [
-                            m("button.btn.btn-success", {onclick: GameTrackerAdmin.vm.genreForm.submitHandlers[GameTrackerAdmin.vm.formMode]}, "submit"),
-                            m("button.btn.btn-danger", {onclick: GameTrackerAdmin.vm.returnToMainForm}, "cancel")
-                        ])
+                        GameTrackerAdmin.screenHelpers.createButtonSet(GameTrackerAdmin.vm.isLoading, "genreForm")
                       ])
         ])
     ]);
@@ -582,13 +609,11 @@ GameTrackerAdmin.screenCollection.SystemFormScreen = function() {
                            select2.view({ onchange:GameTrackerAdmin.vm.systemForm.fields.manufacturerid,
                                           value:GameTrackerAdmin.vm.systemForm.fields.manufacturerid(),
                                           select2InitializationOptions:{placeholder:"Manufacturer"}},
-                                        _.filter(GameTrackerAdmin.vm.companies, {'isManufacturer':1})),
+                                        _.filter(_.pluck(GameTrackerAdmin.vm.companies, "attributes"), {ismanufacturer:1})),
                            m("u[style=cursor:pointer]", {onclick: GameTrackerAdmin.vm.screenHistory.unshift.bind(GameTrackerAdmin.vm.screenHistory, "AddCompanyScreen")}, "+Add Company")
                        ]),
-                       m("div", [
-                           m("button.btn.btn-success", {onclick: GameTrackerAdmin.vm.systemForm.submitHandlers[GameTrackerAdmin.vm.formMode]}, "submit"),
-                           m("button.btn.btn-danger", {onclick: GameTrackerAdmin.vm.returnToMainForm}, "cancel")
-                       ])])
+                       GameTrackerAdmin.screenHelpers.createButtonSet(GameTrackerAdmin.vm.isLoading, "systemForm")
+                      ])
         ])
     ]);
 };
