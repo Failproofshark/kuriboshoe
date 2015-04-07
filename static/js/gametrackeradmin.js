@@ -103,11 +103,12 @@ GameTrackerAdmin.vm = new function() {
 
     };
     vm.init = function() {
-        vm.formMode = "search";
-        vm.selectScreenState = "genre";
+        
+        vm.formMode = "";
+        vm.selectScreenState = "";
         
         //This is used as a stack;
-        vm.screenHistory = ["GameFormScreen"];
+        vm.screenHistory = ["InitialScreen"];
 
         vm.successMessage = "";
         vm.errorMessage = "";
@@ -119,6 +120,21 @@ GameTrackerAdmin.vm = new function() {
             vm.successMessage = "";
             vm.errorMessage = "";
             vm.noResults = "";
+        };
+        vm.completeReset = function() {
+            vm.clearMessages();
+            vm.gameForm.clearForm();
+            vm.systemForm.clearForm();
+            vm.genreForm.clearForm();
+            vm.companyForm.clearForm();
+            vm.currentSelectEntityId("");
+        };
+        
+        vm.jumpToScreen = function(formMode, selectScreenState, screenName) {
+            vm.completeReset();
+            vm.formMode = formMode;
+            vm.selectScreenState = selectScreenState;
+            vm.screenHistory = [screenName, "InitialScreen"];
         };
 
         vm.isLoading = false;
@@ -244,12 +260,12 @@ GameTrackerAdmin.vm = new function() {
                             vm.successMessage = "The system has been added";
                             vm.systemForm.clearForm();
                             vm.isLoading = false;
-                        } else {
-                            vm.errorMessage = "bad crap";
-                            vm.isLoading = false;
                         }
                     }, vm.reportInternalError);
+            } else {
+                vm.errorMessage = "Please fill in all of the fields";
             }
+            vm.isLoading = false;
             return false;
         };
         vm.currentSystemIndex = null;
@@ -409,69 +425,80 @@ GameTrackerAdmin.vm = new function() {
             return false;
         };
 
-        vm.currentSelectEntityId = m.prop(null);
+        vm.currentSelectEntityId = m.prop("");
         vm.generalInitiateEdit = function() {
-            vm.formMode = "update";
-            switch (vm.selectScreenState) {
-            case "system":
-                vm.currentSystemIndex = _.findIndex(vm.systems, {attributes: {id: Number(vm.currentSelectEntityId())}});
-                vm.systemForm.populateForm(vm.systems[vm.currentSystemIndex]);
-                vm.screenHistory.unshift("SystemFormScreen");
-                break;
-            case "company":
-                vm.currentCompanyIndex = _.findIndex(vm.companies, {attributes: {id: Number(vm.currentSelectEntityId())}});
-                vm.companyForm.populateForm(vm.companies[vm.currentCompanyIndex]);
-                vm.screenHistory.unshift("CompanyFormScreen");
-                break;
-            case "genre":
-                vm.currentGenreIndex = _.findIndex(vm.genres, {attributes: {id: Number(vm.currentSelectEntityId())}});
-                vm.genreForm.populateForm(vm.genres[vm.currentGenreIndex]);
-                vm.screenHistory.unshift("GenreFormScreen");
-                break;
-            };
-            vm.currentSelectEntityId(null);
+            vm.clearMessages();
+            if (!_.isEmpty(vm.currentSelectEntityId())) {
+                vm.formMode = "update";
+                switch (vm.selectScreenState) {
+                case "system":
+                    vm.currentSystemIndex = _.findIndex(vm.systems, {attributes: {id: Number(vm.currentSelectEntityId())}});
+                    vm.systemForm.populateForm(vm.systems[vm.currentSystemIndex]);
+                    vm.screenHistory.unshift("SystemFormScreen");
+                    break;
+                case "company":
+                    vm.currentCompanyIndex = _.findIndex(vm.companies, {attributes: {id: Number(vm.currentSelectEntityId())}});
+                    vm.companyForm.populateForm(vm.companies[vm.currentCompanyIndex]);
+                    vm.screenHistory.unshift("CompanyFormScreen");
+                    break;
+                case "genre":
+                    vm.currentGenreIndex = _.findIndex(vm.genres, {attributes: {id: Number(vm.currentSelectEntityId())}});
+                    vm.genreForm.populateForm(vm.genres[vm.currentGenreIndex]);
+                    vm.screenHistory.unshift("GenreFormScreen");
+                    break;
+                }
+            } else {
+                vm.errorMessage = "Please select an item in the dropdown";
+            }
+            vm.currentSelectEntityId("");
             return false;
         };
         vm.generalDelete = function() {
-            vm.isLoading = true;
-            var currentIndex;
-            switch (vm.selectScreenState) {
-            case "system":
-                currentIndex = _.findIndex(vm.systems, {attributes: {id: Number(vm.currentSelectEntityId())}});
-                vm.systems[currentIndex].delete()
-                    .then(function(response) {
-                        if (response.status === "success") {
-                            _.remove(vm.systems, {attributes: {id: Number(vm.currentSelectEntityId())}});
-                            vm.successMessage = "The system has been deleted";
-                        }
-                    },
-                          vm.reportInternalError);
-                break;
-            case "company":
-                currentIndex = _.findIndex(vm.companies, {attributes: {id: Number(vm.currentSelectEntityId())}});
-                vm.companies[currentIndex].delete()
-                    .then(function(response) {
-                        if (response.status === "success") {
-                            _.remove(vm.companies, {attributes: {id: Number(vm.currentSelectEntityId())}});
-                            vm.successMessage = "The company has been deleted";
-                        }
-                    },
-                          vm.reportInternalError);
-                break;
-            case "genre":
-                currentIndex = _.findIndex(vm.genres, {attributes: {id: Number(vm.currentSelectEntityId())}});
-                vm.genres[currentIndex].delete()
-                    .then(function(response) {
-                        if (response.status === "success") {
-                            _.remove(vm.genres, {attributes: {id: Number(vm.currentSelectEntityId())}});
-                            vm.successMessage = "The genre has been deleted";
-                        }
-                    },
-                          vm.reportInternalError);
-                break;                
-            };
-            vm.currentSelectEntityId(null);
-            vm.isLoading =false;
+            vm.clearMessages();
+            if (!_.isEmpty(vm.currentSelectEntityId())) {
+                vm.isLoading = true;
+                var currentIndex;
+                switch (vm.selectScreenState) {
+                case "system":
+                    currentIndex = _.findIndex(vm.systems, {attributes: {id: Number(vm.currentSelectEntityId())}});
+                    vm.systems[currentIndex].delete()
+                        .then(function(response) {
+                            if (response.status === "success") {
+                                _.remove(vm.systems, {attributes: {id: Number(vm.currentSelectEntityId())}});
+                                vm.successMessage = "The system has been deleted";
+                            }
+                        },
+                              vm.reportInternalError);
+                    break;
+                case "company":
+                    currentIndex = _.findIndex(vm.companies, {attributes: {id: Number(vm.currentSelectEntityId())}});
+                    vm.companies[currentIndex].delete()
+                        .then(function(response) {
+                            if (response.status === "success") {
+                                _.remove(vm.companies, {attributes: {id: Number(vm.currentSelectEntityId())}});
+                                vm.successMessage = "The company has been deleted";
+                            }
+                        },
+                              vm.reportInternalError);
+                    break;
+                case "genre":
+                    currentIndex = _.findIndex(vm.genres, {attributes: {id: Number(vm.currentSelectEntityId())}});
+                    vm.genres[currentIndex].delete()
+                        .then(function(response) {
+                            if (response.status === "success") {
+                                _.remove(vm.genres, {attributes: {id: Number(vm.currentSelectEntityId())}});
+                                vm.successMessage = "The genre has been deleted";
+                            }
+                        },
+                              vm.reportInternalError);
+                    break;                
+                };
+                vm.isLoading = false;
+            } else {
+                vm.messageError = "Select an item from the dropdown";
+            }
+            vm.currentSelectEntityId("");
+
             return false;
         };
     };
@@ -541,6 +568,11 @@ GameTrackerAdmin.screenHelpers.createButtonSet = function(isLoading, whichForm) 
 };
 
 GameTrackerAdmin.screenCollection = {};
+
+GameTrackerAdmin.screenCollection.InitialScreen = function() {
+    return m("div#initialAdmin", "Welcome to the Kuribo Shoe Admin Panel");
+};
+
 GameTrackerAdmin.screenCollection.SelectScreen = function() {
     var displayProperties = GameTrackerAdmin.screenHelpers.createButtonDisplayProperties(GameTrackerAdmin.vm.isLoading);
     var selectDataSet = function() {
@@ -558,28 +590,13 @@ GameTrackerAdmin.screenCollection.SelectScreen = function() {
         };
         return dataSet;
     };
-    var placeHolder = function() {
-        var placeholder = "";
-        switch (GameTrackerAdmin.vm.selectScreenState) {
-        case "system":
-            placeholder = "Select A System";
-            break;
-        case "company":
-            placeholder = "Select A Company";
-            break;
-        case "genre":
-            placeholder = "Select A Genre";
-            break;
-        };
-        return placeholder;
-    };
     return m("div.row",[
         m("div.col-xs-12", [
             m("form", [
                 m("div", [
                     select2.view({onchange:GameTrackerAdmin.vm.currentSelectEntityId,
                                   value:GameTrackerAdmin.vm.currentSelectEntityId(),
-                                  select2InitializationOptions:{placeholder:placeHolder()}},
+                                  select2InitializationOptions:{placeholder:"Select an item to edit or delete"}},
                                  selectDataSet())
                 ]),
                 m("div", [
@@ -748,9 +765,52 @@ GameTrackerAdmin.view = function() {
             return m("div", {style:"display:"+GameTrackerAdmin.vm.shouldDisplayScreen(screenName)}, screenContent());
         });
     };
-    return [m("div.text-success", GameTrackerAdmin.vm.successMessage),
+    return [
+        m("nav.navbar.navbar-default", [
+            m("div.container-fluid", [
+                m("div.navbar-header", [
+                    m("button.navbar-toggle.collapsed[type=button][data-toggle=collapse][data-target=#main-nav]", [
+                        m("span.icon-bar"),
+                        m("span.icon-bar"),
+                        m("span.icon-bar")
+                    ])
+                ]),
+                m("div#main-nav.collapse.navbar-collapse",[ 
+                    m("ul.nav.navbar-nav", [
+                        m("li.dropdown", [m("a[href=#].dropdown-toggle[data-toggle=dropdown][role=button]", "Games"),
+                                          m("ul.dropdown-menu[role=menu]", [
+                                              m("li", [m("a[href=#]", {onclick:GameTrackerAdmin.vm.jumpToScreen.bind(GameTrackerAdmin.vm, "add", "game", "GameFormScreen")}, "Add Game")]),
+                                              m("li", [m("a[href=#]", {onclick:GameTrackerAdmin.vm.jumpToScreen.bind(GameTrackerAdmin.vm, "search", "game", "GameFormScreen")}, "Edit/Delete Game")])
+                                          ])
+                                         ]),
+                        m("li.dropdown", [m("a[href=#].dropdown-toggle[data-toggle=dropdown][role=button]", "Systems"),
+                                          m("ul.dropdown-menu[role=menu]", [
+                                              m("li", [m("a[href=#]", {onclick:GameTrackerAdmin.vm.jumpToScreen.bind(GameTrackerAdmin.vm, "add", "system", "SystemFormScreen")}, "Add System")]),
+                                              m("li", [m("a[href=#]", {onclick:GameTrackerAdmin.vm.jumpToScreen.bind(GameTrackerAdmin.vm, "search", "system", "SelectScreen")}, "Edit/Delete System")])
+                                          ])
+                                         ]),
+                        m("li.dropdown", [m("a[href=#].dropdown-toggle[data-toggle=dropdown][role=button]", "Genre"),
+                                          m("ul.dropdown-menu[role=menu]", [
+                                              m("li", [m("a[href=#]", {onclick:GameTrackerAdmin.vm.jumpToScreen.bind(GameTrackerAdmin.vm, "add", "genre", "GenreFormScreen")}, "Add Genre")]),
+                                              m("li", [m("a[href=#]", {onclick:GameTrackerAdmin.vm.jumpToScreen.bind(GameTrackerAdmin.vm, "search", "genre", "SelectScreen")}, "Edit/Delete Genre")])
+                                          ])
+                                         ]),
+                        m("li.dropdown", [m("a[href=#].dropdown-toggle[data-toggle=dropdown][role=button]", "Company"),
+                                          m("ul.dropdown-menu[role=menu]", [
+                                              m("li", [m("a[href=#]", {onclick:GameTrackerAdmin.vm.jumpToScreen.bind(GameTrackerAdmin.vm, "add", "company", "CompanyFormScreen")}, "Add Company")]),
+                                              m("li", [m("a[href=#]", {onclick:GameTrackerAdmin.vm.jumpToScreen.bind(GameTrackerAdmin.vm, "search", "company", "SelectScreen")}, "Edit/Delete Company")])
+                                          ])
+                                         ]),
+                    ])
+                ]),
+            ])
+        ]),
+        m("div.container", [
+            m("div.text-success", GameTrackerAdmin.vm.successMessage),
             m("div.text-danger", GameTrackerAdmin.vm.errorMessage),
-            renderScreens()];
+            renderScreens()
+        ])
+    ];
 };
 
-m.module(document.getElementById("form-insert"), GameTrackerAdmin);
+m.module(document.body, GameTrackerAdmin);
