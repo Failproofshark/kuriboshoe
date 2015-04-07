@@ -198,7 +198,7 @@
 (defroute ("/games/" :method :post) (&key |genres| |companies| _parsed)
   (if (and |genres|
            |companies|
-           (has-required-fields-p '("name" "region" "has_manual" "has_box" "quantity" "system_id") _parsed))
+           (has-required-fields-p '("name" "region" "hasmanual" "hasbox" "quantity" "systemid") _parsed))
       (handler-case (let ((gameparameters (sanitize-input (filter-parameters _parsed '("genres" "companies"))))
                           (parsed-company-ids (parse-string-ints |companies|))
                           (parsed-genre-ids (parse-string-ints |genres|))
@@ -242,7 +242,11 @@
                                                                                                            "%"
                                                                                                            (sanitize-string (cdr parameter))
                                                                                                            "%"))
-                                                                         `(:= ,keyword-symbol ,(sanitize-string (cdr parameter)))))))
+                                                                         (if (symbolp (cdr parameter))
+                                                                             (if (eql :false (cdr parameter))
+                                                                                 `(:= ,keyword-symbol 0)
+                                                                                 `(:= ,keyword-symbol 1))
+                                                                             `(:= ,keyword-symbol ,(sanitize-string (cdr parameter))))))))
                                                            _parsed)))
                              (company-parameters (if |companies| (create-or-list :company_id (map 'list
                                                                                                   #'guarantee-number
@@ -265,7 +269,7 @@
                                           (:as :companies.id :company_id)
                                           (:as :companies.name :companies_name))
                                          (from :games)
-                                         (inner-join :systems :on (:= :games.system_id :systems.id))
+                                         (inner-join :systems :on (:= :games.systemid :systems.id))
                                          (inner-join :games_genres_pivot :on (:= :games.id :games_genres_pivot.game_id ))
                                          (inner-join :genres :on (:= :games_genres_pivot.genre_id :genres.id))
                                          (inner-join :games_companies_pivot :on (:= :games_companies_pivot.game_id :games.id))
@@ -283,7 +287,7 @@
   (if (and |id|
            |genres|
            |companies|
-           (has-required-fields-p '("name" "region" "has_manual" "has_box" "quantity" "system_id") _parsed))
+           (has-required-fields-p '("name" "region" "has_manual" "has_box" "quantity" "systemid") _parsed))
       (handler-case (let ((game-parameters (sanitize-input (filter-parameters _parsed '("genres" "companies"))))
                           (parsed-company-ids (parse-string-ints |companies|))
                           (parsed-genre-ids (parse-string-ints |genres|))
