@@ -191,37 +191,41 @@
       (render-json `(:|status| "error" :|code| "EMALFORMEDINPUT"))))
 
 (defroute ("/admin/verify" :method :post) (&key |username| |password|)
-  (let ((validation-sql (make-string-output-stream))
-        (sanitized-username (sanitize-string |username|))
-        (sanitized-password (sanitize-string |password|))
-        (number-login-attempts 0)
-        (is-validated nil))
-    (format validation-sql "select count(*) as count from users where username='~a' and password=sha2(concat('~a', (select salt from users where username='~a')), 512);" sanitized-username sanitized-password sanitized-username)
-    (with-connection (db)
-      (setf number-login-attempts (getf (retrieve-one
-                                         (select :numberattempts
-                                                 (from :login_attempts)
-                                                 (where (:= :username sanitized-username))))
-                                        :numberattempts))
-      (unless (and (realp number-login-attempts) (>= number-login-attempts 3))
-        (format t "in")
-        (progn
-          (setf is-validated (if (= 1 (getf (retrieve-one (get-output-stream-string validation-sql)) :count))
-                                 t
-                                 nil))
-          (if is-validated
-              (execute (delete-from :login_attempts
-                                    (where (:= :username sanitized-username))))
-              (if number-login-attempts
-                  (execute 
-                   (update :login_attempts
-                           (set= :numberattempts (+ number-login-attempts 1))
-                           (where (:= :username sanitized-username))))
-                  (execute
-                   (create-insert-statement :login_attempts `(:username ,sanitized-username))))))))
-    (cond ((and (realp number-login-attempts) (>= number-login-attempts 3)) "You have been locked out")
-           (is-validated "You're in!")
-           (t "Incorrect name and pass combo"))))
+  (if (and (and (stringp |username|) (> (length |username|) 0))
+           (and (stringp |password|) (> (length |password|) 0)))
+      (let ((validation-sql (make-string-output-stream))
+            (sanitized-username (sanitize-string |username|))
+            (sanitized-password (sanitize-string |password|))
+            (number-login-attempts 0)
+            (is-validated nil))
+        (format validation-sql "select count(*) as count from users where username='~a' and password=sha2(concat('~a', (select salt from users where username='~a')), 512);" sanitized-username sanitized-password sanitized-username)
+        (with-connection (db)
+          (setf number-login-attempts (getf (retrieve-one
+                                             (select :numberattempts
+                                                     (from :login_attempts)
+                                                     (where (:= :username sanitized-username))))
+                                            :numberattempts))
+          (unless (and (realp number-login-attempts) (>= number-login-attempts 3))
+            (format t "in")
+            (progn
+              (setf is-validated (if (= 1 (getf (retrieve-one (get-output-stream-string validation-sql)) :count))
+                                     t
+                                     nil))
+              (if is-validated
+                  (execute (delete-from :login_attempts
+                                        (where (:= :username sanitized-username))))
+                  (if number-login-attempts
+                      (execute 
+                       (update :login_attempts
+                               (set= :numberattempts (+ number-login-attempts 1))
+                               (where (:= :username sanitized-username))))
+                      (execute
+                       (create-insert-statement :login_attempts `(:username ,sanitized-username))))))))
+        (cond ((and (realp number-login-attempts) (>= number-login-attempts 3)) "You have been locked out")
+              (is-validated "You're in!")
+              (t "Incorrect name and pass combo")))
+      "Need username and password"))
+  
 
       
 (defroute ("/company/" :method :post) (&key _parsed)
