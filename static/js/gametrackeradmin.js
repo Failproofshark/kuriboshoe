@@ -44,17 +44,17 @@ GameTrackerAdmin.Model = function(defaultEmptySet, backsideUrl) {
 GameTrackerAdmin.Company = GameTrackerAdmin.Model({id:null,
                                                    name: "",
                                                    ismanufacturer: null},
-                                                  "/company/");
+                                                  "/admin/company/");
 
 GameTrackerAdmin.System = GameTrackerAdmin.Model({ id: null,
                                                    name: "",
                                                    manufacturerid: null },
-                                                 "/system/");
+                                                 "/admin/system/");
 
 GameTrackerAdmin.Genre = GameTrackerAdmin.Model({ id: null,
                                                    name: "",
                                                    manufacturerid: null },
-                                                 "/genre/");
+                                                 "/admin/genre/");
 
 GameTrackerAdmin.vm = new function() {
     var vm = {};
@@ -306,7 +306,7 @@ GameTrackerAdmin.vm = new function() {
                 _.isFinite(Number(vm.gameForm.fields.quantity())) &&
                 Number(vm.gameForm.fields.quantity()) > 0) {
                 m.request({method: "POST",
-                           url: "/games/",
+                           url: "/admin/game/",
                            data: vm.gameForm.returnFields()})
                     .then(function(response) {
                         vm.gameForm.clearForm();
@@ -364,7 +364,7 @@ GameTrackerAdmin.vm = new function() {
                 };
                 //We could just use the data we retrieved from the search but let's guarantee the user with the most recent information
                 m.request({method: "GET",
-                           url: "/games/",
+                           url: "/game/",
                            data: {id: Number(gameId)}
                           })
                     .then(function(response) {
@@ -389,7 +389,7 @@ GameTrackerAdmin.vm = new function() {
                 Number(vm.gameForm.fields.quantity()) > 0) {            
                 var data = _.extend({id: Number(vm.currentGameId)}, vm.gameForm.returnFields());
                 m.request({method: "PUT",
-                           url: "/games/",
+                           url: "/admin/game/",
                            data: data})
                     .then(function(response) {
                         if (response.status === "success") {
@@ -407,7 +407,7 @@ GameTrackerAdmin.vm = new function() {
             vm.searchIsLoading = true;
             if (gameId && _.isFinite(Number(gameId))) {
                 m.request({method: "DELETE",
-                            url: "/games/",
+                            url: "/admin/game/",
                             data: {id: Number(gameId)}})
                     .then(function(response) {
                         if (response.status === "success") {
