@@ -1,0 +1,16 @@
+{% extends "layouts/default.html" %}
+(% block page_css %}{% endblock %}
+{% block title %} Login {% endblock %}
+{% block content %}
+{% if error %}
+<div class="text-danger">
+    {{ error }}
+</div>
+{% endif %}
+<form action="/admin/verify" method="post">
+    <input type="text" name="username" />
+    <input type="password" name="password" />
+    <button class="btn btn-primary">Submit</button>
+</form>
+{% endblock %}
+{% block page_javascript %}{% endblock %}
