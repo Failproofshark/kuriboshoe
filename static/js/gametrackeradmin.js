@@ -254,7 +254,6 @@ GameTrackerAdmin.vm = new function() {
                 var newSystem = new GameTrackerAdmin.System(vm.systemForm.returnFields());
                 newSystem.save()
                     .then(function(response) {
-                        console.log(response);
                         if (response.status === "success") {
                             vm.systems.push(newSystem);
                             vm.successMessage = "The system has been added";
@@ -300,7 +299,6 @@ GameTrackerAdmin.vm = new function() {
         
         vm.gameForm.submitHandlers.add = function() {
             vm.isLoading = true;
-            console.log(vm.gameForm.fields.systemid());
             if (!_.isEmpty(vm.gameForm.fields.name()) &&
                 !_.isEmpty(vm.gameForm.fields.region()) &&
                 _.isFinite(Number(vm.gameForm.fields.systemid())) &&
@@ -311,7 +309,6 @@ GameTrackerAdmin.vm = new function() {
                            url: "/games/",
                            data: vm.gameForm.returnFields()})
                     .then(function(response) {
-                        console.log(response);
                         vm.gameForm.clearForm();
                     }, vm.reportInternalError);
             } else {
@@ -375,8 +372,6 @@ GameTrackerAdmin.vm = new function() {
                         vm.gameForm.fields.companies(_.pluck(ensureArray(response.companies), "companyId"));
                         vm.gameForm.fields.genres(_.pluck(ensureArray(response.genres), "genreId"));
                         vm.gameForm.populateForm(_.omit(response, ["companies", "genres"]));
-                        console.log(_.omit(response, ["companies", "genres"]));
-
                         vm.formMode = "update";
                         vm.searchResults = [];
                     }, vm.reportInternalError);
@@ -604,8 +599,6 @@ GameTrackerAdmin.screenCollection.SelectScreen = function() {
                                                  onclick: GameTrackerAdmin.vm.generalInitiateEdit}, "edit"),
                     m("button.btn.btn-danger", {style: displayProperties.button,
                                                 onclick: GameTrackerAdmin.vm.generalDelete}, "delete"),
-                    m("button.btn.btn-default", {style: displayProperties.button,
-                                                 onclick: GameTrackerAdmin.vm.returnToMainForm}, "back"),
                     m("img[src=/images/ajax.gif]", {style: displayProperties.preloader})
                 ])])
         ])
