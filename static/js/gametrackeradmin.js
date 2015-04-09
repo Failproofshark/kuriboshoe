@@ -31,7 +31,7 @@ GameTrackerAdmin.Model = function(defaultEmptySet, backsideUrl) {
                               data: self.attributes});
         };
 
-        this.delete = function() {
+        this.remove = function() {
             var self = this;
             return m.request({method: "DELETE",
                               url: self.backsideUrl,
@@ -123,6 +123,7 @@ GameTrackerAdmin.vm = new function() {
         };
         vm.completeReset = function() {
             vm.clearMessages();
+            vm.searchResults = [];
             vm.gameForm.clearForm();
             vm.systemForm.clearForm();
             vm.genreForm.clearForm();
@@ -135,6 +136,7 @@ GameTrackerAdmin.vm = new function() {
             vm.formMode = formMode;
             vm.selectScreenState = selectScreenState;
             vm.screenHistory = [screenName, "InitialScreen"];
+            return false;
         };
 
         vm.isLoading = false;
@@ -161,6 +163,7 @@ GameTrackerAdmin.vm = new function() {
         vm.returnToMainForm = function(whichForm) {
             vm[whichForm].clearForm();
             vm.screenHistory.shift();
+            return false;
         };
 
         vm.companyForm = new vm.TrackerForm({name: m.prop(""),
@@ -310,6 +313,7 @@ GameTrackerAdmin.vm = new function() {
                            data: vm.gameForm.returnFields()})
                     .then(function(response) {
                         vm.gameForm.clearForm();
+                        vm.successMessage = "Successfully added the game";
                     }, vm.reportInternalError);
             } else {
                 vm.errorMessage = "Please fill in all the fields";
@@ -456,33 +460,37 @@ GameTrackerAdmin.vm = new function() {
                 switch (vm.selectScreenState) {
                 case "system":
                     currentIndex = _.findIndex(vm.systems, {attributes: {id: Number(vm.currentSelectEntityId())}});
-                    vm.systems[currentIndex].delete()
+                    vm.systems[currentIndex].remove()
                         .then(function(response) {
                             if (response.status === "success") {
                                 _.remove(vm.systems, {attributes: {id: Number(vm.currentSelectEntityId())}});
-                                vm.successMessage = "The system has been deleted";
+                                vm.successMessage = "The system has been removed";
+                                vm.currentSelectEntityId("");
                             }
                         },
                               vm.reportInternalError);
                     break;
                 case "company":
                     currentIndex = _.findIndex(vm.companies, {attributes: {id: Number(vm.currentSelectEntityId())}});
-                    vm.companies[currentIndex].delete()
+                    vm.companies[currentIndex].remove()
                         .then(function(response) {
                             if (response.status === "success") {
                                 _.remove(vm.companies, {attributes: {id: Number(vm.currentSelectEntityId())}});
-                                vm.successMessage = "The company has been deleted";
+                                vm.successMessage = "The company has been removed";
+                                vm.currentSelectEntityId("");
                             }
                         },
                               vm.reportInternalError);
                     break;
                 case "genre":
                     currentIndex = _.findIndex(vm.genres, {attributes: {id: Number(vm.currentSelectEntityId())}});
-                    vm.genres[currentIndex].delete()
+                    vm.genres[currentIndex].remove()
                         .then(function(response) {
                             if (response.status === "success") {
+                                console.log(vm.currentSelectEntityId());
                                 _.remove(vm.genres, {attributes: {id: Number(vm.currentSelectEntityId())}});
-                                vm.successMessage = "The genre has been deleted";
+                                vm.successMessage = "The genre has been removed";
+                                vm.currentSelectEntityId("");
                             }
                         },
                               vm.reportInternalError);
@@ -492,8 +500,6 @@ GameTrackerAdmin.vm = new function() {
             } else {
                 vm.messageError = "Select an item from the dropdown";
             }
-            vm.currentSelectEntityId("");
-
             return false;
         };
     };
