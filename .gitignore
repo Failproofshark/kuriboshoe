@@ -8,3 +8,6 @@
 .#*
 src/config.lisp
 static/libs/*
+/node_modules/
+/gametracker.db
+/gametracker_backup.db
