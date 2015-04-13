@@ -23,6 +23,9 @@
 ;;
 ;; Routing rules
 ;;GET
+(defroute ("/" :method :get) ()
+  (render-initial-page #p"index.html"))
+
 (defroute ("/admin" :method :get) (&key |error|)
   (let ((error-message (cond ((string= |error| "EINCORR") "Incorrect name and password combination")
                              ((string= |error| "ELOCKED") "Too many attempts have been made. You have been locked out of the system")
@@ -30,20 +33,9 @@
                              (t ""))))
     (render #p "login.html" (list :error error-message))))
 
-
 (defroute ("/admin/main" :method :get) ()
-  ;; We don't assign the following variables initial values so we can just open the db once to request all the data we need
   (session-protected-route (:html)
-    (let* ((initial-company-listing)
-           (initial-genre-listing)
-           (initial-systems-listing))
-      (with-connection (db)
-        (setf initial-company-listing (encode-json-custom (retrieve-all-from-table :companies)))
-        (setf initial-genre-listing (encode-json-custom (retrieve-all-from-table :genres)))
-        (setf initial-systems-listing (encode-json-custom (retrieve-all-from-table :systems))))
-      (render #p"index.html" (list :companies initial-company-listing
-                                   :genres initial-genre-listing
-                                   :systems initial-systems-listing)))))
+    (render-initial-page #p"adminindex.html")))
 
 ;;Query strings are read in as strings while post parameters are parsed as the type they're supposed to
 (defroute ("/game/" :method :get) (&key |id|)

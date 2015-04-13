@@ -25,7 +25,8 @@
            :add-to-table
            :update-table-entry
            :delete-from-table
-           :session-protected-route))
+           :session-protected-route
+           :render-initial-page))
 (in-package :gametracker.helpers)
 
 (defun sanitize-string (parameter)
@@ -163,3 +164,15 @@
               ,(if (eql response-type :json)
                    `(encode-json-custom '(:|status| "error" :|code| "EUNAUTH"))
                    `(throw-code 403)))))
+
+(defun render-initial-page (template)
+  (let* ((initial-company-listing)
+         (initial-genre-listing)
+         (initial-systems-listing))
+    (with-connection (db)
+      (setf initial-company-listing (encode-json-custom (retrieve-all-from-table :companies)))
+      (setf initial-genre-listing (encode-json-custom (retrieve-all-from-table :genres)))
+      (setf initial-systems-listing (encode-json-custom (retrieve-all-from-table :systems))))
+    (render template (list :companies initial-company-listing
+                           :genres initial-genre-listing
+                           :systems initial-systems-listing))))

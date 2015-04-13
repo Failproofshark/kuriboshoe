@@ -1,49 +1,5 @@
 GameTrackerAdmin.vm = new function() {
     var vm = {};
-    vm.TrackerForm = function(fields) {
-        this.fields = fields;
-        this.populateForm = function(object) {
-            var self = this;
-            if (object.attributes) {
-                _.map(object.attributes, function(attributeValue, attributeKey) {
-                    if (attributeKey !== "id") {
-                        self.fields[attributeKey](attributeValue);
-                    }
-                });
-            } else {
-                _.map(object, function(value, key) {
-                    if (key !== "id") {
-                        self.fields[key](value);
-                    }
-                });
-            }
-        };
-        this.clearForm = _.forEach.bind(this, this.fields, function(input) {
-            if (_.isString(input())) {
-                input("");
-            } else if (_.isArray(input())) {
-                input([]);
-            } else if (_.isBoolean(input())){
-                input(false);
-            } else {
-                input(null);
-            }
-        });
-        this.returnFields = function() {
-            return _.mapValues(this.fields, function(field) {
-                return field();
-            });
-        };
-        this.submitHandlers = {};
-        /* This will probably be refactored out in the future given the only thing that has a search is the game form
-         * To keep things from complaining about a missing key we add an empty function here
-         */
-        this.submitHandlers.search = function() { /*empty*/ };
-        this.getSubmitHandler = function(state) {
-            return this.submitHandlers[state];
-        };
-
-    };
     vm.init = function() {
         
         vm.formMode = "";
@@ -108,7 +64,7 @@ GameTrackerAdmin.vm = new function() {
             return false;
         };
 
-        vm.companyForm = new vm.TrackerForm({name: m.prop(""),
+        vm.companyForm = new GameTrackerShared.TrackerForm({name: m.prop(""),
                                              ismanufacturer: m.prop(false)
                                           });
         /* TODO The add functions are basically the same. There should be a good way of refactoring this either creating a funciton generator
@@ -154,7 +110,7 @@ GameTrackerAdmin.vm = new function() {
             return false;
         };
         
-        vm.genreForm = new vm.TrackerForm({name: m.prop("")});
+        vm.genreForm = new GameTrackerShared.TrackerForm({name: m.prop("")});
         vm.genreForm.submitHandlers.add = function() {
             vm.isLoading = true;
             vm.clearMessages();
@@ -195,7 +151,7 @@ GameTrackerAdmin.vm = new function() {
             return false;
         };
 
-        vm.systemForm = new vm.TrackerForm({name: m.prop(""),
+        vm.systemForm = new GameTrackerShared.TrackerForm({name: m.prop(""),
                                             manufacturerid: m.prop("")});
         vm.systemForm.submitHandlers.add = function() {
             vm.isLoading = true;
@@ -237,7 +193,7 @@ GameTrackerAdmin.vm = new function() {
         //The naming convention seems to have changed (not camel case) but this is because we wish
         //To mirror what we have in the table, mainly for back-end convenience
         //TODO have each form have a namespace for their thingies
-        vm.gameForm = new vm.TrackerForm({name: m.prop(""),
+        vm.gameForm = new GameTrackerShared.TrackerForm({name: m.prop(""),
                                           blurb: m.prop(""),
                                           region: m.prop(""),
                                           hasmanual: m.prop(false),

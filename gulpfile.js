@@ -3,7 +3,7 @@ var gulp = require("gulp"),
     uglify = require("gulp-uglify"),
     sourcemaps = require("gulp-sourcemaps");
 
-var adminSources = ["static/js/adminmodels.js", "static/js/adminviews.js", "static/js/adminvmcontroller.js", "static/js/select2mithril.js", "static/js/gametrackeradmin.js"];
+var adminSources = ["static/js/gametrackershared.js", "static/js/adminmodels.js", "static/js/adminviews.js", "static/js/adminvmcontroller.js", "static/js/select2mithril.js", "static/js/gametrackeradmin.js"];
 var clientSources = [""];
 gulp.task("buildadmindebug", function() {
     return gulp.src(adminSources)

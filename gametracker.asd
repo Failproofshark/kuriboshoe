@@ -30,6 +30,7 @@
                  (:file "web" :depends-on ("view" "helpers"))
                  (:file "view" :depends-on ("config"))
                  (:file "db" :depends-on ("config"))
+                 (:file "helpers")
                  (:file "config"))))
   :description "A simple tool to help keep track of my game collection."
   :in-order-to ((test-op (load-op gametracker-test))))
