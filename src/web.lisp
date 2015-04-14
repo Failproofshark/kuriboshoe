@@ -203,7 +203,7 @@
                                          (where where-arguments)
                                          (group-by :games.id)))))
                         (setf (headers *response* :content-type) "application/json")
-                        (encode-json-custom result-set)))
+                        (concatenate 'string "{\"results\":" (encode-json-custom result-set) "}")))
         (sb-int:simple-parse-error ()
           (render-json '(:|status| "error" :|code| "ENOTINT"))))
       (render-json `(:|status| "error" :|code| "EMALFORMEDINPUT"))))

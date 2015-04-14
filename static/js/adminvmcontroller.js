@@ -22,16 +22,17 @@ GameTrackerAdmin.vm = new function() {
         vm.completeReset = function() {
             vm.clearMessages();
             vm.searchResults = [];
-            vm.gameForm.clearForm();
             vm.systemForm.clearForm();
             vm.genreForm.clearForm();
             vm.companyForm.clearForm();
+            GameForm.controller.gameForm.clearForm();
             vm.currentSelectEntityId("");
         };
         
         vm.jumpToScreen = function(formMode, selectScreenState, screenName) {
             vm.completeReset();
             vm.formMode = formMode;
+            GameForm.controller.formMode = formMode;
             vm.selectScreenState = selectScreenState;
             vm.screenHistory = [screenName, "InitialScreen"];
             return false;
@@ -189,81 +190,41 @@ GameTrackerAdmin.vm = new function() {
             }
             return false;
         };
+
+        GameForm.controller.isAdmin = true;
+        GameForm.controller.populateSelectDataSets(vm.systems, vm.genres, vm.companies);
+        GameForm.controller.cancelButtonHandler = function() {
+            GameForm.controller.gameForm.clearForm();
+            vm.screenHistory.shift();
+        };
         
-        //The naming convention seems to have changed (not camel case) but this is because we wish
-        //To mirror what we have in the table, mainly for back-end convenience
-        //TODO have each form have a namespace for their thingies
-        vm.gameForm = new GameTrackerShared.TrackerForm({name: m.prop(""),
-                                          blurb: m.prop(""),
-                                          region: m.prop(""),
-                                          hasmanual: m.prop(false),
-                                          hasbox: m.prop(false),
-                                          notes: m.prop(""),
-                                          quantity: m.prop(""),
-                                          genres: m.prop([]),
-                                          companies: m.prop([]),
-                                          systemid: m.prop("")});
-        
-        vm.gameForm.submitHandlers.add = function() {
-            vm.isLoading = true;
-            if (!_.isEmpty(vm.gameForm.fields.name()) &&
-                !_.isEmpty(vm.gameForm.fields.region()) &&
-                _.isFinite(Number(vm.gameForm.fields.systemid())) &&
-                Number(vm.gameForm.fields.systemid()) > 0 &&
-                _.isFinite(Number(vm.gameForm.fields.quantity())) &&
-                Number(vm.gameForm.fields.quantity()) > 0) {
+        GameForm.controller.bindSubmitFormHandler("add", function() {
+            console.log('blorp');
+            GameForm.controller.isLoading = true;
+            if (!_.isEmpty(GameForm.controller.gameForm.fields.name()) &&
+                !_.isEmpty(GameForm.controller.gameForm.fields.region()) &&
+                _.isFinite(Number(GameForm.controller.gameForm.fields.systemid())) &&
+                Number(GameForm.controller.gameForm.fields.systemid()) > 0 &&
+                _.isFinite(Number(GameForm.controller.gameForm.fields.quantity())) &&
+                Number(GameForm.controller.gameForm.fields.quantity()) > 0) {
                 m.request({method: "POST",
                            url: "/admin/game/",
-                           data: vm.gameForm.returnFields()})
+                           data: GameForm.controller.gameForm.returnFields()})
                     .then(function(response) {
-                        vm.gameForm.clearForm();
+                        GameForm.controller.gameForm.clearForm();
                         vm.successMessage = "Successfully added the game";
-                        vm.isLoading = false;
+                        GameForm.controller.isLoading = false;
                     }, vm.reportInternalError);
             } else {
                 vm.errorMessage = "Please fill in all the fields";
-                vm.isLoading = false;
+                GameForm.controller.isLoading = false;
             }
             return false;
-        };
-
-        vm.searchResults = [];
-        vm.noResults = "";
-        vm.gameForm.submitHandlers.search = function() {
-            vm.isLoading = true;
-            var completedSet = _.omit(vm.gameForm.returnFields(), function(value, key) {
-                var returnValue = true;
-                if (_.isBoolean(value)) {
-                    returnValue = !value;
-                } else if (_.isString(value) && value.length > 0) {
-                    returnValue = false;
-                }
-                return returnValue;
-            });
-            
-            if (!_.isEmpty(completedSet)) {
-                m.request({method:"post",
-                           url: "/search-games-ajax/",
-                           data: completedSet})
-                    .then(function(response) {
-                        //Empty results set returns a single item array with null being that object
-                        vm.searchResults = _.remove(response, function(item) { return !_.isNull(item); });
-                        if (vm.searchResults.length < 1) {
-                            vm.noResults = "No matches were found";
-                        }
-                        vm.isLoading = false;
-                    }, vm.reportInternalError);
-            } else {
-                vm.errorMessage = "Please enter at least one search parameter";
-                vm.isLoading = false;
-            }
-            return false;
-        };
+        });
 
         vm.currentGameId = 0;
-        vm.searchIsLoading = false;
-        vm.initiateEditGameEntry = function(gameId) {
-            vm.searchIsLoading = true;
+        GameForm.controller.selectUpdateHandler = function(gameId) {
+            GameForm.controller.searchLoading = true;
             if (gameId && _.isFinite(Number(gameId))) {
                 /* A known limitation with the backend: things we expect to be an array may be a simple object due to the json encoder on the backend
                    not being able to encode single row results correctly
@@ -279,43 +240,43 @@ GameTrackerAdmin.vm = new function() {
                           })
                     .then(function(response) {
                         vm.currentGameId = Number(response.id);
-                        vm.gameForm.fields.companies(_.pluck(ensureArray(response.companies), "companyId"));
-                        vm.gameForm.fields.genres(_.pluck(ensureArray(response.genres), "genreId"));
-                        vm.gameForm.populateForm(_.omit(response, ["companies", "genres"]));
-                        vm.formMode = "update";
-                        vm.searchResults = [];
-                        vm.searchIsLoading = false;
+                        GameForm.controller.gameForm.fields.companies(_.pluck(ensureArray(response.companies), "companyId"));
+                        GameForm.controller.gameForm.fields.genres(_.pluck(ensureArray(response.genres), "genreId"));
+                        GameForm.controller.gameForm.populateForm(_.omit(response, ["companies", "genres"]));
+                        GameForm.controller.formMode = "update";
+                        GameForm.controller.searchResults = [];
+                        GameForm.controller.searchLoading = false;
                     }, vm.reportInternalError);
             }
         };
 
-        vm.gameForm.submitHandlers.update = function() {
-            vm.isLoading = true;
-            if (!_.isEmpty(vm.gameForm.fields.name()) &&
-                !_.isEmpty(vm.gameForm.fields.region()) &&
-                _.isFinite(Number(vm.gameForm.fields.systemid())) &&
-                Number(vm.gameForm.fields.systemid()) > 0 &&
-                _.isFinite(Number(vm.gameForm.fields.quantity())) &&
-                Number(vm.gameForm.fields.quantity()) > 0) {            
-                var data = _.extend({id: Number(vm.currentGameId)}, vm.gameForm.returnFields());
+        GameForm.controller.bindSubmitFormHandler("update", function() {
+            GameForm.controller.isLoading = true;
+            if (!_.isEmpty(GameForm.controller.gameForm.fields.name()) &&
+                !_.isEmpty(GameForm.controller.gameForm.fields.region()) &&
+                _.isFinite(Number(GameForm.controller.gameForm.fields.systemid())) &&
+                Number(GameForm.controller.gameForm.fields.systemid()) > 0 &&
+                _.isFinite(Number(GameForm.controller.gameForm.fields.quantity())) &&
+                Number(GameForm.controller.gameForm.fields.quantity()) > 0) {            
+                var data = _.extend({id: Number(vm.currentGameId)}, GameForm.controller.gameForm.returnFields());
                 m.request({method: "PUT",
                            url: "/admin/game/",
                            data: data})
                     .then(function(response) {
                         if (response.status === "success") {
                             vm.successMessage = "Game successfully updated";
-                            vm.isLoading = false;
+                            GameForm.controller.isLoading = false;
                         } 
                     }, vm.reportInternalError);
             } else {
                 vm.errorMessage = "Please fill in the fields";
-                vm.isLoading = false;
+                GameForm.controller.isLoading = false;
             }
             return false;
-        };
+        });
 
-        vm.deleteGame = function(gameId) {
-            vm.searchIsLoading = true;
+        GameForm.controller.selectDeleteHandler = function(gameId) {
+            GameForm.controller.searchLoading = true;
             if (gameId && _.isFinite(Number(gameId))) {
                 m.request({method: "DELETE",
                             url: "/admin/game/",
@@ -323,8 +284,8 @@ GameTrackerAdmin.vm = new function() {
                     .then(function(response) {
                         if (response.status === "success") {
                             vm.successMessage = "The game has been deleted";
-                            _.remove(vm.searchResults, function(game) { return game.id === Number(gameId); });
-                            vm.searchIsLoading = false;
+                            _.remove(GameForm.controller.searchResults, function(game) { return game.id === Number(gameId); });
+                            GameForm.controller.searchLoading = false;
                         }
                     }, vm.reportInternalError);
             }
