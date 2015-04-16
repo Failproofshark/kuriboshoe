@@ -31,6 +31,10 @@ GameForm.controller = new function() {
     this.genres;
     this.companies;
 
+    this.addCompanyHandler = function() {};
+    this.addGenreHandler = function() {};
+    this.addSystemHandler = function() {};
+
     this.populateSelectDataSets = function(systems, genres, companies) {
         this.systems = systems;
         this.genres = genres;

@@ -93,7 +93,7 @@ GameTrackerAdmin.screenCollection.SystemFormScreen = function() {
                                           value:GameTrackerAdmin.vm.systemForm.fields.manufacturerid(),
                                           select2InitializationOptions:{placeholder:"Manufacturer"}},
                                         _.filter(_.pluck(GameTrackerAdmin.vm.companies, "attributes"), {ismanufacturer:1})),
-                           m("u[style=cursor:pointer]", {onclick: GameTrackerAdmin.vm.screenHistory.unshift.bind(GameTrackerAdmin.vm.screenHistory, "AddCompanyScreen")}, "+Add Company")
+                           m("u[style=cursor:pointer]", {onclick: GameTrackerAdmin.vm.changeToAddCompany}, "+Add Company")
                        ]),
                        GameTrackerAdmin.screenHelpers.createButtonSet(GameTrackerAdmin.vm.isLoading, "systemForm")
                       ])

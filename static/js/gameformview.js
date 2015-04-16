@@ -11,6 +11,15 @@ GameForm.view = function() {
         preloaderDisplay: function() {
             var displayValue = (GameForm.controller.isLoading) ? "display:inherit" : "display:none";
             return displayValue;
+        },
+        changeFormProperties: function() {
+            var styleProperties = "cursor:pointer;";
+            if (GameForm.controller.isAdmin) {
+                styleProperties += "display:inherit";
+            } else {
+                styleProperties += "display:none";
+            }
+            return styleProperties;
         }
     };
     var renderSearchResults = function() {
@@ -61,20 +70,29 @@ GameForm.view = function() {
                               value: GameForm.controller.gameForm.fields.region(),
                               select2InitializationOptions: {placeholder: "Region", allowClear: true}},
                              ["NTSC", "NTSC-J", "PAL"]),
-                select2.view({onchange:GameForm.controller.gameForm.fields.systemid,
-                              value: GameForm.controller.gameForm.fields.systemid(),
-                              select2InitializationOptions: {placeholder: "System", allowClear: true}},
-                             GameForm.controller.systems),
-                select2.view({onchange:GameForm.controller.gameForm.fields.genres,
-                              value: GameForm.controller.gameForm.fields.genres(),
-                              select2InitializationOptions: {placeholder: "Genres", allowClear: true}},
-                             GameForm.controller.genres,
-                             true),
-                select2.view({onchange:GameForm.controller.gameForm.fields.companies,
-                              value: GameForm.controller.gameForm.fields.companies(),
-                              select2InitializationOptions: {placeholder: "Companies", allowClear: true}},
-                             GameForm.controller.companies,
-                             true),
+                m("div", [
+                    select2.view({onchange:GameForm.controller.gameForm.fields.systemid,
+                                  value: GameForm.controller.gameForm.fields.systemid(),
+                                  select2InitializationOptions: {placeholder: "System", allowClear: true}},
+                                 GameForm.controller.systems),
+                    m("u", {style:formConfiguration.changeFormProperties(), onclick: GameForm.controller.addSystemHandler}, "+Add System")
+                ]),
+                m("div", [
+                    select2.view({onchange:GameForm.controller.gameForm.fields.genres,
+                                  value: GameForm.controller.gameForm.fields.genres(),
+                                  select2InitializationOptions: {placeholder: "Genres", allowClear: true}},
+                                 GameForm.controller.genres,
+                                 true),
+                    m("u", {style:formConfiguration.changeFormProperties(), onclick: GameForm.controller.addGenreHandler}, "+Add Genre")
+                ]),
+                m("div", [
+                    select2.view({onchange:GameForm.controller.gameForm.fields.companies,
+                                  value: GameForm.controller.gameForm.fields.companies(),
+                                  select2InitializationOptions: {placeholder: "Companies", allowClear: true}},
+                                 GameForm.controller.companies,
+                                 true),
+                    m("u", {style:formConfiguration.changeFormProperties(), onclick: GameForm.controller.addCompanyHandler}, "+Add Company")
+                ]),
                 m("input.form-control", {onchange: m.withAttr("value", GameForm.controller.gameForm.fields.quantity),
                                          value: GameForm.controller.gameForm.fields.quantity(),
                                          placeholder: "Quantity"

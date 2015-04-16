@@ -65,6 +65,14 @@ GameTrackerAdmin.vm = new function() {
             return false;
         };
 
+        //This is slightly different from jumping to a screen because we may want the game form to be different since it's its own entity
+        vm.generateChangeHandler = function(newScreen) {
+            return function() {
+                vm.screenHistory.unshift(newScreen);
+                vm.formMode = "add";
+            };
+        };
+
         vm.companyForm = new GameTrackerShared.TrackerForm({name: m.prop(""),
                                              ismanufacturer: m.prop(false)
                                           });
@@ -152,6 +160,7 @@ GameTrackerAdmin.vm = new function() {
             return false;
         };
 
+        vm.changeToAddCompany = vm.generateChangeHandler("CompanyFormScreen");
         vm.systemForm = new GameTrackerShared.TrackerForm({name: m.prop(""),
                                             manufacturerid: m.prop("")});
         vm.systemForm.submitHandlers.add = function() {
@@ -192,6 +201,9 @@ GameTrackerAdmin.vm = new function() {
         };
 
         GameForm.controller.isAdmin = true;
+        GameForm.controller.addCompanyHandler = vm.generateChangeHandler("CompanyFormScreen");
+        GameForm.controller.addGenreHandler = vm.generateChangeHandler("GenreFormScreen");
+        GameForm.controller.addSystemHandler = vm.generateChangeHandler("SystemFormScreen");
         GameForm.controller.populateSelectDataSets(_.pluck(vm.systems, "attributes"), _.pluck(vm.genres, "attributes"), _.pluck(vm.companies, "attributes"));
         GameForm.controller.cancelButtonHandler = function() {
             GameForm.controller.gameForm.clearForm();

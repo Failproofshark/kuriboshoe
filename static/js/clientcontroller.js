@@ -15,6 +15,7 @@ GameTrackerClient.vm = new function() {
         
         GameForm.controller.cancelButtonHandler = function() {
             GameForm.controller.gameForm.clearForm();
+            return false;
         };
 
         vm.currentGame = null;
