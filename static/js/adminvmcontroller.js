@@ -192,7 +192,7 @@ GameTrackerAdmin.vm = new function() {
         };
 
         GameForm.controller.isAdmin = true;
-        GameForm.controller.populateSelectDataSets(vm.systems, vm.genres, vm.companies);
+        GameForm.controller.populateSelectDataSets(_.pluck(vm.systems, "attributes"), _.pluck(vm.genres, "attributes"), _.pluck(vm.companies, "attributes"));
         GameForm.controller.cancelButtonHandler = function() {
             GameForm.controller.gameForm.clearForm();
             vm.screenHistory.shift();

@@ -11,6 +11,9 @@ GameForm.controller = new function() {
                                                        genres: m.prop([]),
                                                        companies: m.prop([]),
                                                        systemid: m.prop("")});
+
+    this.errorMessage = "";
+
     this.isLoading = false;
     this.searchResults = [];
 
@@ -43,6 +46,8 @@ GameForm.controller = new function() {
         this.gameForm.submitHandlers[state] = handler;
     };
 
+    this.titleClickHandler = function() {};
+
     this.gameForm.submitHandlers.search = function() {
         GameForm.controller.isLoading = true;
         var completedSet = _.omit(GameForm.controller.gameForm.returnFields(), function(value, key) {
@@ -55,6 +60,7 @@ GameForm.controller = new function() {
             return returnValue;
         });
         if (!_.isEmpty(completedSet)) {
+            GameForm.controller.errorMessage = "";
             m.request({method:"post",
                        url: "/search-games-ajax/",
                        data: completedSet})

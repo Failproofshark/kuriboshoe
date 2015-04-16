@@ -15,7 +15,8 @@ GameForm.view = function() {
     };
     var renderSearchResults = function() {
         var renderedResults = [];
-        var displayProperties = (GameForm.searchLoading) ? {results: "display:none", preloader: "display:inherit"} : {results: "display:inherit", preloader: "display:none"};
+        var displayProperties = (GameForm.controller.searchLoading) ? {results: "display:none", preloader: "display:inherit"} : {results: "display:inherit", preloader: "display:none"};
+        var titleCursorProperty = (GameForm.controller.isAdmin) ? "cursor:default" : "cursor:pointer";
         var renderAdminButtons = function(result) {
             var adminButtons = [];
             if (GameForm.controller.isAdmin) {
@@ -38,8 +39,11 @@ GameForm.view = function() {
                                      return m("div.row.result-row", {style:bgColor},
                                               [m("div.col-xs-9",
                                                  {style:bgColor},
-                                                 (result.name + " [" + result.region + "] (" + result.systemName + ")")),
-                                               renderAdminButtons(result)]);
+                                                 [
+                                                     m("span", {style:titleCursorProperty, onclick:GameForm.controller.titleClickHandler.bind(GameForm.controller, result.id)}, (result.name + " [" + result.region + "] (" + result.systemName + ")")),
+                                                 ]),
+                                               renderAdminButtons(result)
+                                              ]);
                                  }),
                                  m("img[src=/images/ajax.gif]", {style:displayProperties.preloader})
                                 ]);
@@ -48,27 +52,28 @@ GameForm.view = function() {
     };
     return [m("div.row",[
         m("div.col-xs-12",[
+            m("div.text-danger", GameForm.controller.errorMessage),
             m("form", [
                 m("input.form-control", {onchange: m.withAttr("value", GameForm.controller.gameForm.fields.name),
                                          value: GameForm.controller.gameForm.fields.name(),
                                          placeholder: "Name"}),
                 select2.view({onchange:GameForm.controller.gameForm.fields.region,
                               value: GameForm.controller.gameForm.fields.region(),
-                              select2InitializationOptions: {placeholder: "Region"}},
+                              select2InitializationOptions: {placeholder: "Region", allowClear: true}},
                              ["NTSC", "NTSC-J", "PAL"]),
                 select2.view({onchange:GameForm.controller.gameForm.fields.systemid,
                               value: GameForm.controller.gameForm.fields.systemid(),
-                              select2InitializationOptions: {placeholder: "System"}},
-                             _.pluck(GameForm.controller.systems, "attributes")),
+                              select2InitializationOptions: {placeholder: "System", allowClear: true}},
+                             GameForm.controller.systems),
                 select2.view({onchange:GameForm.controller.gameForm.fields.genres,
                               value: GameForm.controller.gameForm.fields.genres(),
-                              select2InitializationOptions: {placeholder: "Genres"}},
-                             _.pluck(GameForm.controller.genres, "attributes"),
+                              select2InitializationOptions: {placeholder: "Genres", allowClear: true}},
+                             GameForm.controller.genres,
                              true),
                 select2.view({onchange:GameForm.controller.gameForm.fields.companies,
                               value: GameForm.controller.gameForm.fields.companies(),
-                              select2InitializationOptions: {placeholder: "Companies"}},
-                             _.pluck(GameForm.controller.companies, "attributes"),
+                              select2InitializationOptions: {placeholder: "Companies", allowClear: true}},
+                             GameForm.controller.companies,
                              true),
                 m("input.form-control", {onchange: m.withAttr("value", GameForm.controller.gameForm.fields.quantity),
                                          value: GameForm.controller.gameForm.fields.quantity(),
