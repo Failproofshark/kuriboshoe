@@ -5,7 +5,7 @@ GameForm.view = function() {
             return displayValue;
         },
         actionButtonDisplay: function() {
-            var displayValue = (GameForm.controller.isLoading) ? "display:none" : "display:inherit";
+            var displayValue = (GameForm.controller.isLoading) ? "display:none" : "display:inline";
             return displayValue;
         },
         preloaderDisplay: function() {
