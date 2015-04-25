@@ -4,8 +4,8 @@ GameForm.controller = new function() {
     this.gameForm = new GameTrackerShared.TrackerForm({name: m.prop(""),
                                                        blurb: m.prop(""),
                                                        region: m.prop(""),
-                                                       hasmanual: m.prop(false),
-                                                       hasbox: m.prop(false),
+                                                       hasmanual: m.prop(0),
+                                                       hasbox: m.prop(0),
                                                        notes: m.prop(""),
                                                        quantity: m.prop(""),
                                                        genres: m.prop([]),
@@ -53,6 +53,7 @@ GameForm.controller = new function() {
     this.titleClickHandler = function() {};
 
     this.gameForm.submitHandlers.search = function() {
+        GameForm.controller.noResults = "";
         GameForm.controller.isLoading = true;
         var completedSet = _.omit(GameForm.controller.gameForm.returnFields(), function(value, key) {
             var returnValue = true;

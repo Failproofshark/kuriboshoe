@@ -26,12 +26,13 @@
 (in-package :gametracker.app)
 
 (builder
- (<clack-middleware-static>
-  :path (lambda (path)
-          (if (ppcre:scan "^(?:/images/|/css/|/js/|/libs/|/robot\\.txt$|/favicon.ico$)" path)
-              path
-              nil))
-  :root *static-directory*)
+ (unless (productionp)
+   (make-instance '<clack-middleware-static>
+                   :path (lambda (path)
+                           (if (ppcre:scan "^(?:/images/|/css/|/js/|/libs/|/robot\\.txt$|/favicon.ico$)" path)
+                               path
+                               nil))
+                   :root *static-directory*))
  (if (productionp)
      nil
      (make-instance '<clack-middleware-accesslog>))

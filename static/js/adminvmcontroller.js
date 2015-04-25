@@ -74,7 +74,7 @@ GameTrackerAdmin.vm = new function() {
         };
 
         vm.companyForm = new GameTrackerShared.TrackerForm({name: m.prop(""),
-                                             ismanufacturer: m.prop(false)
+                                             ismanufacturer: m.prop(0)
                                           });
         /* TODO The add functions are basically the same. There should be a good way of refactoring this either creating a funciton generator
          * or creating a child object
@@ -87,10 +87,13 @@ GameTrackerAdmin.vm = new function() {
                 newCompany.save()
                     .then(function(response) {
                         if (response.status === "success") {
+                            m.startComputation();
                             vm.companies.push(newCompany);
+                            GameForm.controller.companies = _.pluck(vm.companies, "attributes");
                             vm.successMessage = "The company has been added";
                             vm.companyForm.clearForm();
                             vm.isLoading = false;
+                            m.endComputation();
                         } else {
                             vm.errorMessage = "Could not add the company";
                             vm.isLoading = false;
@@ -129,6 +132,7 @@ GameTrackerAdmin.vm = new function() {
                     .then(function(response) {
                         if (response.status === "success") {
                             vm.genres.push(newGenre);
+                            GameForm.controller.genres = _.pluck(vm.genres, "attributes");
                             vm.successMessage = "The genre has been added";
                             vm.genreForm.clearForm();
                             vm.isLoading = false;
@@ -172,6 +176,7 @@ GameTrackerAdmin.vm = new function() {
                     .then(function(response) {
                         if (response.status === "success") {
                             vm.systems.push(newSystem);
+                            GameForm.controller.systems = _.pluck(vm.systems, "attributes");
                             vm.successMessage = "The system has been added";
                             vm.systemForm.clearForm();
                             vm.isLoading = false;
@@ -211,7 +216,6 @@ GameTrackerAdmin.vm = new function() {
         };
         
         GameForm.controller.bindSubmitFormHandler("add", function() {
-            console.log('blorp');
             GameForm.controller.isLoading = true;
             if (!_.isEmpty(GameForm.controller.gameForm.fields.name()) &&
                 !_.isEmpty(GameForm.controller.gameForm.fields.region()) &&
@@ -220,7 +224,7 @@ GameTrackerAdmin.vm = new function() {
                 _.isFinite(Number(GameForm.controller.gameForm.fields.quantity())) &&
                 Number(GameForm.controller.gameForm.fields.quantity()) > 0) {
                 m.request({method: "POST",
-                           url: "/admin/game/",
+                           url: "/thosewhodarenotwander/game/",
                            data: GameForm.controller.gameForm.returnFields()})
                     .then(function(response) {
                         GameForm.controller.gameForm.clearForm();
@@ -272,7 +276,7 @@ GameTrackerAdmin.vm = new function() {
                 Number(GameForm.controller.gameForm.fields.quantity()) > 0) {            
                 var data = _.extend({id: Number(vm.currentGameId)}, GameForm.controller.gameForm.returnFields());
                 m.request({method: "PUT",
-                           url: "/admin/game/",
+                           url: "/thosewhodarenotwander/game/",
                            data: data})
                     .then(function(response) {
                         if (response.status === "success") {
@@ -291,7 +295,7 @@ GameTrackerAdmin.vm = new function() {
             GameForm.controller.searchLoading = true;
             if (gameId && _.isFinite(Number(gameId))) {
                 m.request({method: "DELETE",
-                            url: "/admin/game/",
+                            url: "/thosewhodarenotwander/game/",
                             data: {id: Number(gameId)}})
                     .then(function(response) {
                         if (response.status === "success") {
@@ -348,6 +352,7 @@ GameTrackerAdmin.vm = new function() {
                                 vm.successMessage = "The system has been removed";
                                 vm.currentSelectEntityId("");
                                 vm.isLoading = false;
+                                GameForm.controller.systems = _.pluck(vm.systems, "attributes");
                             }
                         },
                               vm.reportInternalError);
@@ -361,6 +366,7 @@ GameTrackerAdmin.vm = new function() {
                                 vm.successMessage = "The company has been removed";
                                 vm.currentSelectEntityId("");
                                 vm.isLoading = false;
+                                GameForm.controller.companies = _.pluck(vm.companies, "attributes");
                             }
                         },
                               vm.reportInternalError);
@@ -370,17 +376,16 @@ GameTrackerAdmin.vm = new function() {
                     vm.genres[currentIndex].remove()
                         .then(function(response) {
                             if (response.status === "success") {
-                                console.log(vm.currentSelectEntityId());
                                 _.remove(vm.genres, {attributes: {id: Number(vm.currentSelectEntityId())}});
                                 vm.successMessage = "The genre has been removed";
                                 vm.currentSelectEntityId("");
                                 vm.isLoading = false;
+                                GameForm.controller.genres = _.pluck(vm.genres, "attributes");
                             }
                         },
                               vm.reportInternalError);
                     break;                
                 };
-
             } else {
                 vm.messageError = "Select an item from the dropdown";
             }

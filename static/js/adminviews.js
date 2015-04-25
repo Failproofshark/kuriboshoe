@@ -85,6 +85,9 @@ GameTrackerAdmin.screenCollection.GenreFormScreen = function() {
 };
 
 GameTrackerAdmin.screenCollection.SystemFormScreen = function() {
+    var manufacturerDataSet = function() {
+        return _.filter(_.pluck(GameTrackerAdmin.vm.companies, "attributes"), {ismanufacturer:1});
+    };
     return m("div.row", [
         m("div.col-xs-12", [
             m("form", [m("input.form-control[type=text]", {placeholder:"System Name", onchange: m.withAttr("value", GameTrackerAdmin.vm.systemForm.fields.name), value: GameTrackerAdmin.vm.systemForm.fields.name()}),
@@ -92,7 +95,8 @@ GameTrackerAdmin.screenCollection.SystemFormScreen = function() {
                            select2.view({ onchange:GameTrackerAdmin.vm.systemForm.fields.manufacturerid,
                                           value:GameTrackerAdmin.vm.systemForm.fields.manufacturerid(),
                                           select2InitializationOptions:{placeholder:"Manufacturer"}},
-                                        _.filter(_.pluck(GameTrackerAdmin.vm.companies, "attributes"), {ismanufacturer:1})),
+                                        manufacturerDataSet()
+                                       ),
                            m("u[style=cursor:pointer]", {onclick: GameTrackerAdmin.vm.changeToAddCompany}, "+Add Company")
                        ]),
                        GameTrackerAdmin.screenHelpers.createButtonSet(GameTrackerAdmin.vm.isLoading, "systemForm")

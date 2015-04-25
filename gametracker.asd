@@ -22,6 +22,13 @@
                :datafly
                :sxql
 
+               ;; Deploying with woo!
+               :woo
+
+               ;; for recaptcha
+               :drakma
+               :flexi-streams
+
                ;; for session store in rdbms
                :clack-session-store-dbi)
   :components ((:module "src"

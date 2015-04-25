@@ -31,7 +31,11 @@ GameTrackerShared.TrackerForm = function(fields) {
     });
     this.returnFields = function() {
         return _.mapValues(this.fields, function(field) {
-            return field();
+            var returnValue = field();
+            if (_.isBoolean(returnValue)) {
+                returnValue = Number(returnValue);
+            }
+            return returnValue;
         });
     };
     this.submitHandlers = {};

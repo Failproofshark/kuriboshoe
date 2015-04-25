@@ -1,6 +1,11 @@
 GameTrackerClient.screenCollection = {};
 GameTrackerClient.screenCollection.SearchScreen = function() {
     return [m("h1", "Game Search"),
+            m("div", [
+                m("span", "Fill in at least one search parameter below."),
+                m("br"),
+                m("em", "e.g. To see all Super Famicom games, select Super Famicom in the System select drop down and click submit")
+            ]),
             GameForm.view()];
 }
 GameTrackerClient.screenCollection.InfoScreen = function() {

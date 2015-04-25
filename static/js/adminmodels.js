@@ -12,9 +12,11 @@ GameTrackerAdmin.Model = function(defaultEmptySet, backsideUrl) {
 
         this.save = function() {
             var self = this;
+            // For backend purposes
             return m.request({method: "POST",
                               url: self.backsideUrl,
-                              data:_.omit(self.attributes, "id")})
+                              data: _.omit(self.attributes, "id")
+                             })
                 .then(function(response) {
                     self.attributes.id = response.newid;
                     return response;
@@ -28,7 +30,8 @@ GameTrackerAdmin.Model = function(defaultEmptySet, backsideUrl) {
             });
             return m.request({method: "PUT",
                               url: self.backsideUrl,
-                              data: self.attributes});
+                              data: self.attributes
+                             });
         };
 
         this.remove = function() {
@@ -44,14 +47,14 @@ GameTrackerAdmin.Model = function(defaultEmptySet, backsideUrl) {
 GameTrackerAdmin.Company = GameTrackerAdmin.Model({id:null,
                                                    name: "",
                                                    ismanufacturer: null},
-                                                  "/admin/company/");
+                                                  "/thosewhodarenotwander/company/");
 
 GameTrackerAdmin.System = GameTrackerAdmin.Model({ id: null,
                                                    name: "",
                                                    manufacturerid: null },
-                                                 "/admin/system/");
+                                                 "/thosewhodarenotwander/system/");
 
 GameTrackerAdmin.Genre = GameTrackerAdmin.Model({ id: null,
                                                    name: "",
                                                    manufacturerid: null },
-                                                 "/admin/genre/");
+                                                 "/thosewhodarenotwander/genre/");

@@ -7,7 +7,11 @@
         :gametracker.db
         :gametracker.helpers
         :datafly
+        :drakma
+        :cl-json
+        :flexi-streams
         :sxql)
+  (:shadowing-import-from :datafly :encode-json)
   (:export :*web*))
 (in-package :gametracker.web)
 
@@ -30,8 +34,12 @@
   (let ((error-message (cond ((string= |error| "EINCORR") "Incorrect name and password combination")
                              ((string= |error| "ELOCKED") "Too many attempts have been made. You have been locked out of the system")
                              ((string= |error| "EMISSING") "Please enter a username and password")
+                             ((string= |error| "missing-input-response") "Please ensure the recaptcha has been completed")
+                             ((string= |error| "invalid-input-secret") "Recaptcha secret is incorrect")
+                             ((string= |error| "invalid-input-response") "Recaptcha response is invalid or malformed")
                              (t ""))))
-    (render #p "login.html" (list :error error-message))))
+    (render #p "login.html" `(:error ,error-message
+                                     :sitekey ,(config :site-key)))))
 
 (defroute ("/admin/main" :method :get) ()
   (session-protected-route (:html)
@@ -73,42 +81,51 @@
       (render-json `(:|status| "error" :|code| "ENOID"))))
 
 ;;POST
-(defroute ("/admin/verify" :method :post) (&key |username| |password|)
-  (if (and (and (stringp |username|) (> (length |username|) 0))
-           (and (stringp |password|) (> (length |password|) 0)))
-      (let ((validation-sql (make-string-output-stream))
-            (sanitized-username (sanitize-string |username|))
-            (sanitized-password (sanitize-string |password|))
-            (number-login-attempts 0)
-            (is-validated nil))
-        (format validation-sql "select count(*) as count from users where username='~a' and password=sha2(concat('~a', (select salt from users where username='~a')), 512);" sanitized-username sanitized-password sanitized-username)
-        (with-connection (db)
-          (setf number-login-attempts (getf (retrieve-one
-                                             (select :numberattempts
-                                                     (from :login_attempts)
-                                                     (where (:= :username sanitized-username))))
-                                            :numberattempts))
-          (unless (and (realp number-login-attempts) (>= number-login-attempts 3))
-            (format t "in")
-            (progn
-              (setf is-validated (if (= 1 (getf (retrieve-one (get-output-stream-string validation-sql)) :count))
-                                     t
-                                     nil))
-              (if is-validated
-                  (execute (delete-from :login_attempts
-                                        (where (:= :username sanitized-username))))
-                  (if number-login-attempts
-                      (execute 
-                       (update :login_attempts
-                               (set= :numberattempts (+ number-login-attempts 1))
-                               (where (:= :username sanitized-username))))
-                      (execute
-                       (create-insert-statement :login_attempts `(:username ,sanitized-username))))))))
-        (cond ((and (realp number-login-attempts) (>= number-login-attempts 3)) (redirect "/admin?error=ELOCKED"))
-              (is-validated (progn (setf (gethash :isverified *session*) t)
-                                   (redirect "/admin/main")))
-              (t (redirect "/admin?error=EINCORR"))))
-      (redirect "/admin?error=EMISSING")))
+(defroute ("/admin/verify" :method :post) (&key |user| |password| |g-recaptcha-response|)
+  (let* ((stream (http-request "https://www.google.com/recaptcha/api/siteverify"
+                               :method :post
+                               :parameters `(("secret" . ,(config :secret-key))
+                                             ("response" . ,|g-recaptcha-response|))
+                               :want-stream t))
+         (google-response (progn (setf (flexi-stream-external-format stream) :utf-8)
+                                 (setf google-response (decode-json stream)))))
+    (if (cdr (assoc :success google-response))
+        (if (and (and (stringp |user|) (> (length |user|) 0))
+                 (and (stringp |password|) (> (length |password|) 0)))
+            (let ((validation-sql (make-string-output-stream))
+                  (sanitized-username (sanitize-string |user|))
+                  (sanitized-password (sanitize-string |password|))
+                  (number-login-attempts 0)
+                  (is-validated nil))
+              (format validation-sql "select count(*) as count from users where username='~a' and password=sha2(concat('~a', (select salt from users where username='~a')), 512);" sanitized-username sanitized-password sanitized-username)
+              (with-connection (db)
+                (setf number-login-attempts (getf (retrieve-one
+                                                   (select :numberattempts
+                                                           (from :login_attempts)
+                                                           (where (:= :username sanitized-username))))
+                                                  :numberattempts))
+                (unless (and (realp number-login-attempts) (>= number-login-attempts 3))
+                  (format t "in")
+                  (progn
+                    (setf is-validated (if (= 1 (getf (retrieve-one (get-output-stream-string validation-sql)) :count))
+                                           t
+                                           nil))
+                    (if is-validated
+                        (execute (delete-from :login_attempts
+                                              (where (:= :username sanitized-username))))
+                        (if number-login-attempts
+                            (execute 
+                             (update :login_attempts
+                                     (set= :numberattempts (+ number-login-attempts 1))
+                                     (where (:= :username sanitized-username))))
+                            (execute
+                             (create-insert-statement :login_attempts `(:username ,sanitized-username))))))))
+              (cond ((and (realp number-login-attempts) (>= number-login-attempts 3)) (redirect "/admin?error=ELOCKED"))
+                    (is-validated (progn (setf (gethash :isverified *session*) t)
+                                         (redirect "/admin/main")))
+                    (t (redirect "/admin?error=EINCORR"))))
+            (redirect "/admin?error=EMISSING"))
+        (redirect (concatenate 'string "/admin?error=" (cadr (assoc :error-codes google-response)))))))
       
 (defroute ("/admin/company/" :method :post) (&key _parsed)
   (session-protected-route (:json)
