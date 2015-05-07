@@ -47,14 +47,14 @@ GameTrackerAdmin.Model = function(defaultEmptySet, backsideUrl) {
 GameTrackerAdmin.Company = GameTrackerAdmin.Model({id:null,
                                                    name: "",
                                                    ismanufacturer: null},
-                                                  "/thosewhodarenotwander/company/");
+                                                  "/admin/company/");
 
 GameTrackerAdmin.System = GameTrackerAdmin.Model({ id: null,
                                                    name: "",
                                                    manufacturerid: null },
-                                                 "/thosewhodarenotwander/system/");
+                                                 "/admin/system/");
 
 GameTrackerAdmin.Genre = GameTrackerAdmin.Model({ id: null,
                                                    name: "",
                                                    manufacturerid: null },
-                                                 "/thosewhodarenotwander/genre/");
+                                                 "/admin/genre/");

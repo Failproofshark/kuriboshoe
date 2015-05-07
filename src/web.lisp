@@ -128,6 +128,7 @@
         (redirect (concatenate 'string "/admin?error=" (cadr (assoc :error-codes google-response)))))))
       
 (defroute ("/admin/company/" :method :post) (&key _parsed)
+  (format t "~a" _parsed)
   (session-protected-route (:json)
     (add-to-table :companies '("name" "ismanufacturer") _parsed)))
 

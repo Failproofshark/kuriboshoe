@@ -74,8 +74,8 @@ GameTrackerAdmin.vm = new function() {
         };
 
         vm.companyForm = new GameTrackerShared.TrackerForm({name: m.prop(""),
-                                             ismanufacturer: m.prop(0)
-                                          });
+                                                            ismanufacturer: m.prop(false)
+                                                           });
         /* TODO The add functions are basically the same. There should be a good way of refactoring this either creating a funciton generator
          * or creating a child object
          */
@@ -84,6 +84,7 @@ GameTrackerAdmin.vm = new function() {
             vm.clearMessages();
             if (!_.isEmpty(vm.companyForm.fields.name())) {
                 var newCompany = new GameTrackerAdmin.Company(vm.companyForm.returnFields());
+                console.log(vm.companyForm.returnFields());
                 newCompany.save()
                     .then(function(response) {
                         if (response.status === "success") {
@@ -95,6 +96,7 @@ GameTrackerAdmin.vm = new function() {
                             vm.isLoading = false;
                             m.endComputation();
                         } else {
+                            console.log(response);
                             vm.errorMessage = "Could not add the company";
                             vm.isLoading = false;
                         }
@@ -276,7 +278,7 @@ GameTrackerAdmin.vm = new function() {
                 Number(GameForm.controller.gameForm.fields.quantity()) > 0) {            
                 var data = _.extend({id: Number(vm.currentGameId)}, GameForm.controller.gameForm.returnFields());
                 m.request({method: "PUT",
-                           url: "/thosewhodarenotwander/game/",
+                           url: "/admin/game/",
                            data: data})
                     .then(function(response) {
                         if (response.status === "success") {
@@ -295,7 +297,7 @@ GameTrackerAdmin.vm = new function() {
             GameForm.controller.searchLoading = true;
             if (gameId && _.isFinite(Number(gameId))) {
                 m.request({method: "DELETE",
-                            url: "/thosewhodarenotwander/game/",
+                            url: "/admin/game/",
                             data: {id: Number(gameId)}})
                     .then(function(response) {
                         if (response.status === "success") {
