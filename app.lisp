@@ -40,9 +40,7 @@
      (make-instance '<clack-middleware-backtrace>
                     :output (getf (config) :error-log))
      nil)
- (<clack-middleware-session>
-  :store (make-instance 'clack.session.store.dbi:<clack-session-store-dbi>
-                        :connect-args (gametracker.db:connection-settings)))
+ (<clack-middleware-session>)
  (if (productionp)
      nil
      (lambda (app)

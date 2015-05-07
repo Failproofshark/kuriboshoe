@@ -27,10 +27,7 @@
 
                ;; for recaptcha
                :drakma
-               :flexi-streams
-
-               ;; for session store in rdbms
-               :clack-session-store-dbi)
+               :flexi-streams)
   :components ((:module "src"
                 :components
                 ((:file "main" :depends-on ("config" "view" "db"))
