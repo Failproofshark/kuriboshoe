@@ -23,10 +23,17 @@ select2.config = function(extraArguments) {
 
 select2.view = function(extraArguments, optionSet, isMultiple) {
     var selector = (isMultiple) ? "select.form-control[multiple=true]" : "select.form-control";
+    var sortedOptions = _.sortBy(optionSet, function(value) {
+        var returnValue = value;
+        if (_.isObject(value)) {
+            returnValue = value.name.toLowerCase();
+        }
+        return returnValue;
+    });
     var createOptionSet = function() {
         var options = [];
         if (optionSet) {
-            options = _.map(optionSet, function(value) {
+            options = _.map(sortedOptions, function(value) {
                 var returnValue = (_.isObject(value)) ? m("option", {value: value.id}, value.name) : m("option", value);
                 return returnValue;
             });
