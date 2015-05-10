@@ -84,7 +84,6 @@ GameTrackerAdmin.vm = new function() {
             vm.clearMessages();
             if (!_.isEmpty(vm.companyForm.fields.name())) {
                 var newCompany = new GameTrackerAdmin.Company(vm.companyForm.returnFields());
-                console.log(vm.companyForm.returnFields());
                 newCompany.save()
                     .then(function(response) {
                         if (response.status === "success") {
@@ -96,7 +95,6 @@ GameTrackerAdmin.vm = new function() {
                             vm.isLoading = false;
                             m.endComputation();
                         } else {
-                            console.log(response);
                             vm.errorMessage = "Could not add the company";
                             vm.isLoading = false;
                         }
@@ -182,6 +180,9 @@ GameTrackerAdmin.vm = new function() {
                             vm.successMessage = "The system has been added";
                             vm.systemForm.clearForm();
                             vm.isLoading = false;
+                        } else {
+                            vm.errorMessage = "Could not add the game."
+                            vm.isLoading = false;
                         }
                     }, vm.reportInternalError);
             } else {
@@ -226,7 +227,7 @@ GameTrackerAdmin.vm = new function() {
                 _.isFinite(Number(GameForm.controller.gameForm.fields.quantity())) &&
                 Number(GameForm.controller.gameForm.fields.quantity()) > 0) {
                 m.request({method: "POST",
-                           url: "/thosewhodarenotwander/game/",
+                           url: "/admin/game/",
                            data: GameForm.controller.gameForm.returnFields()})
                     .then(function(response) {
                         GameForm.controller.gameForm.clearForm();
@@ -277,6 +278,7 @@ GameTrackerAdmin.vm = new function() {
                 _.isFinite(Number(GameForm.controller.gameForm.fields.quantity())) &&
                 Number(GameForm.controller.gameForm.fields.quantity()) > 0) {            
                 var data = _.extend({id: Number(vm.currentGameId)}, GameForm.controller.gameForm.returnFields());
+
                 m.request({method: "PUT",
                            url: "/admin/game/",
                            data: data})

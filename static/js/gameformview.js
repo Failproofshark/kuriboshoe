@@ -49,7 +49,7 @@ GameForm.view = function() {
                                               [m("div.col-xs-9",
                                                  {style:bgColor},
                                                  [
-                                                     m("span", {style:titleCursorProperty, onclick:GameForm.controller.titleClickHandler.bind(GameForm.controller, result.id)}, (result.name + " [" + result.region + "] (" + result.systemName + ")")),
+                                                     m("span", {style:titleCursorProperty, onclick:GameForm.controller.titleClickHandler.bind(GameForm.controller, result.id)}, (result.name.replace(/\\/g, '') + " [" + result.region + "] (" + result.systemName.replace(/\\/g,'') + ")")),
                                                  ]),
                                                renderAdminButtons(result)
                                               ]);

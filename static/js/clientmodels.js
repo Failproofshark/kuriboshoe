@@ -2,18 +2,18 @@ var GameTrackerClient = {}
 
 GameTrackerClient.Game = function(initialObject) {
     this.attributes = {
-        name : initialObject.name,
-        blurb : initialObject.blurb,
+        name : initialObject.name.replace(/\\/g,''),
+        blurb : ((_.isNull(initialObject.blurb)) ? "" : initialObject.blurb.replace(/\\/g,'')),
         region : initialObject.region,
         hasmanual : initialObject.hasmanual,
         hasbox : initialObject.hasbox,
-        notes : initialObject.notes,
+        notes :  ((_.isNull(initialObject.notes)) ? "" : initialObject.notes.replace(/\\/g,'')),
         quantity : initialObject.quantity,
         systemname : "",
         genres: [],
         companies: []
     };
-    this.attributes.systemname = _.result(_.find(systems, {id: initialObject.systemid}), "name");
+    this.attributes.systemname = _.result(_.find(systems, {id: initialObject.systemid}), "name").replace(/\\/g,'');
     
     var ensureArray = function(item) {
         var returnValue = _.isArray(item) ? item : [item];
@@ -25,10 +25,10 @@ GameTrackerClient.Game = function(initialObject) {
      */
     var getRelatedNames = function(collectionName) {
         var singularName = (collectionName === "genres") ? "genreId" : "companyId";
-        return _.pluck(_.filter(eval(collectionName), function(item) {
+        return _.map(_.pluck(_.filter(eval(collectionName), function(item) {
             return _.contains(_.pluck(ensureArray(initialObject[collectionName]), singularName), item.id);
         }),
-                       "name");
+                       "name"), function(item) { return item.replace(/\\/g,''); });
     };
     
     this.attributes.genres = getRelatedNames("genres");

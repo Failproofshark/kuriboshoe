@@ -26,7 +26,7 @@ select2.view = function(extraArguments, optionSet, isMultiple) {
     var sortedOptions = _.sortBy(optionSet, function(value) {
         var returnValue = value;
         if (_.isObject(value)) {
-            returnValue = value.name.toLowerCase();
+            returnValue = value.name.toLowerCase().replace(/\\/g,'');
         }
         return returnValue;
     });
