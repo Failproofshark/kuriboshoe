@@ -3,11 +3,11 @@ var GameTrackerClient = {}
 GameTrackerClient.Game = function(initialObject) {
     this.attributes = {
         name : initialObject.name.replace(/\\/g,''),
-        blurb : ((_.isNull(initialObject.blurb)) ? "" : initialObject.blurb.replace(/\\/g,'')),
+        blurb : ((_.isNull(initialObject.blurb)) ? "N/A" : initialObject.blurb.replace(/\\/g,'')),
         region : initialObject.region,
         hasmanual : initialObject.hasmanual,
         hasbox : initialObject.hasbox,
-        notes :  ((_.isNull(initialObject.notes)) ? "" : initialObject.notes.replace(/\\/g,'')),
+        notes :  ((_.isNull(initialObject.notes)) ? "N/A" : initialObject.notes.replace(/\\/g,'')),
         quantity : initialObject.quantity,
         systemname : "",
         genres: [],
