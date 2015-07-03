@@ -1,13 +1,14 @@
 (in-package :cl-user)
-(defpackage gametracker-asd
+(defpackage kuriboshoe-asd
   (:use :cl :asdf))
-(in-package :gametracker-asd)
+(in-package :kuriboshoe-asd)
 
-(defsystem gametracker
-  :version "0.1"
+(defsystem kuriboshoe
+  :version "1.0"
   :author "Bryan Baraoidan"
   :license "LGPL"
   :depends-on (:clack
+               :lack
                :caveman2
                :envy
                :cl-ppcre
@@ -22,12 +23,8 @@
                :datafly
                :sxql
 
-               ;; Deploying with woo!
-               :woo
-
-               ;; for recaptcha
-               :drakma
-               :flexi-streams)
+               ;; Misc packages
+               :drakma)
   :components ((:module "src"
                 :components
                 ((:file "main" :depends-on ("config" "view" "db"))
@@ -36,5 +33,5 @@
                  (:file "db" :depends-on ("config"))
                  (:file "helpers")
                  (:file "config"))))
-  :description "A simple tool to help keep track of my game collection."
-  :in-order-to ((test-op (load-op gametracker-test))))
+  :description "A simple tool to help keep track of my game collection"
+  :in-order-to ((test-op (load-op kuriboshoe-test))))

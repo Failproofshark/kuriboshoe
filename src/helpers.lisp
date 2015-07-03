@@ -1,11 +1,11 @@
 ;; A collection of functions and macros I wrote to streamline a few things
 (in-package :cl-user)
-(defpackage gametracker.helpers
+(defpackage kuriboshoe.helpers
   (:use :cl
         :caveman2
-        :gametracker.config
-        :gametracker.view
-        :gametracker.db
+        :kuriboshoe.config
+        :kuriboshoe.view
+        :kuriboshoe.db
         :datafly
         :sxql)
   (:export :sanitize-string
@@ -27,7 +27,7 @@
            :delete-from-table
            :session-protected-route
            :render-initial-page))
-(in-package :gametracker.helpers)
+(in-package :kuriboshoe.helpers)
 
 (defun sanitize-string (parameter)
   (concatenate 'string (loop for char across parameter

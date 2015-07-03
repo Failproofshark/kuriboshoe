@@ -1,16 +1,16 @@
 (in-package :cl-user)
-(defpackage gametracker
+(defpackage kuriboshoe
   (:use :cl)
-  (:import-from :gametracker.config
+  (:import-from :kuriboshoe.config
                 :config)
   (:import-from :clack
                 :clackup)
   (:export :start
            :stop))
-(in-package :gametracker)
+(in-package :kuriboshoe)
 
 (defvar *appfile-path*
-  (asdf:system-relative-pathname :gametracker #P"app.lisp"))
+  (asdf:system-relative-pathname :kuriboshoe #P"app.lisp"))
 
 (defvar *handler* nil)
 

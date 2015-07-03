@@ -1,14 +1,14 @@
 (in-package :cl-user)
-(defpackage gametracker-test-asd
+(defpackage kuriboshoe-test-asd
   (:use :cl :asdf))
-(in-package :gametracker-test-asd)
+(in-package :kuriboshoe-test-asd)
 
-(defsystem gametracker-test
-  :author "Bryan Baraoidan"
+(defsystem kuriboshoe-test
+  :author ""
   :license ""
-  :depends-on (:gametracker
+  :depends-on (:kuriboshoe
                :prove)
   :components ((:module "t"
                 :components
-                ((:file "gametracker"))))
+                ((:file "kuriboshoe"))))
   :perform (load-op :after (op c) (asdf:clear-system c)))

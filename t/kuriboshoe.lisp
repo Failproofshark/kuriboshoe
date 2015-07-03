@@ -1,9 +1,9 @@
 (in-package :cl-user)
-(defpackage gametracker-test
+(defpackage kuriboshoe-test
   (:use :cl
-        :gametracker
+        :kuriboshoe
         :prove))
-(in-package :gametracker-test)
+(in-package :kuriboshoe-test)
 
 (plan nil)
 

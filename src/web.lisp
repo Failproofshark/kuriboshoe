@@ -1,11 +1,11 @@
 (in-package :cl-user)
-(defpackage gametracker.web
+(defpackage kuriboshoe.web
   (:use :cl
         :caveman2
-        :gametracker.config
-        :gametracker.view
-        :gametracker.db
-        :gametracker.helpers
+        :kuriboshoe.config
+        :kuriboshoe.view
+        :kuriboshoe.db
+        :kuriboshoe.helpers
         :datafly
         :drakma
         :cl-json
@@ -13,13 +13,14 @@
         :sxql)
   (:shadowing-import-from :datafly :encode-json)
   (:export :*web*))
-(in-package :gametracker.web)
+(in-package :kuriboshoe.web)
 
 ;; for @route annotation
 (syntax:use-syntax :annot)
 
 ;;
 ;; Application
+
 (defclass <web> (<app>) ())
 (defvar *web* (make-instance '<web>))
 (clear-routing-rules *web*)
@@ -68,8 +69,9 @@
                           (setf related-genres (list :genres (extract-if-single (retrieve-all-from-table :games_genres_pivot
                                                                                                          (where (:= :game_id game-id))))))
                           (setf related-companies (list :companies (extract-if-single (retrieve-all-from-table :games_companies_pivot
-                                                                                                               (where (:= :game_id game-id))))))
-                          (setf (headers *response* :contente-type) "application/json")
+                                                                                        (where (:= :game_id game-id))))))
+                          (setf (getf (response-headers *response*) :content-type) "application/json")
+                          ;; Try the regular render-json. Maybe it's fixed?
                           (encode-json-custom (append game-table-record
                                                       related-genres
                                                       related-companies
@@ -220,7 +222,7 @@
                                          (inner-join :companies :on (:= :games_companies_pivot.company_id :companies.id))
                                          (where where-arguments)
                                          (group-by :games.id)))))
-                        (setf (headers *response* :content-type) "application/json")
+                        (setf (getf (response-headers *response*) :content-type) "application/json")
                         (concatenate 'string "{\"results\":" (encode-json-custom result-set) "}")))
         (sb-int:simple-parse-error ()
           (render-json '(:|status| "error" :|code| "ENOTINT"))))
@@ -292,6 +294,7 @@
   (session-protected-route (:json)
     (delete-from-table |id| :genres)))
 
+;;
 ;; Error pages
 
 (defmethod on-exception ((app <web>) (code (eql 404)))

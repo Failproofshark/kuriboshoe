@@ -1,7 +1,7 @@
 (in-package :cl-user)
-(defpackage gametracker.db
+(defpackage kuriboshoe.db
   (:use :cl)
-  (:import-from :gametracker.config
+  (:import-from :kuriboshoe.config
                 :config)
   (:import-from :datafly
                 :*connection*
@@ -9,7 +9,7 @@
   (:export :connection-settings
            :db
            :with-connection))
-(in-package :gametracker.db)
+(in-package :kuriboshoe.db)
 
 (defun connection-settings (&optional (db :maindb))
   (cdr (assoc db (config :databases))))

@@ -1,12 +1,11 @@
 (in-package :cl-user)
-(defpackage gametracker.view
+(defpackage kuriboshoe.view
   (:use :cl)
-  (:import-from :gametracker.config
+  (:import-from :kuriboshoe.config
                 :*template-directory*)
   (:import-from :caveman2
-                :*response*)
-  (:import-from :clack.response
-                :headers)
+                :*response*
+                :response-headers)
   (:import-from :djula
                 :add-template-directory
                 :compile-template*
@@ -16,7 +15,7 @@
                 :encode-json)
   (:export :render
            :render-json))
-(in-package :gametracker.view)
+(in-package :kuriboshoe.view)
 
 (djula:add-template-directory *template-directory*)
 
@@ -32,16 +31,16 @@
            env)))
 
 (defun render-json (object)
-  (setf (headers *response* :content-type) "application/json")
+  (setf (getf (response-headers *response*) :content-type) "application/json")
   (encode-json object))
 
 
 ;;
 ;; Execute package definition
 
-(defpackage gametracker.djula
+(defpackage kuriboshoe.djula
   (:use :cl)
-  (:import-from :gametracker.config
+  (:import-from :kuriboshoe.config
                 :config
                 :appenv
                 :developmentp
@@ -49,4 +48,4 @@
   (:import-from :caveman2
                 :url-for))
 
-(setf djula:*djula-execute-package* (find-package :gametracker.djula))
+(setf djula:*djula-execute-package* (find-package :kuriboshoe.djula))
