@@ -10,10 +10,10 @@
 <form action="/admin/verify" method="post">
     <input type="text" name="user" />
     <input type="password" name="password" />
-    <div class="g-recaptcha" data-sitekey="{{sitekey}}"></div>    
+    {{ captcha|safe }}
     <button class="btn btn-primary">Submit</button>
 </form>
 {% endblock %}
 {% block page_javascript %}
-<script src="https://www.google.com/recaptcha/api.js"></script>
+{{ recaptcha_header_tag|safe }}
 {% endblock %}

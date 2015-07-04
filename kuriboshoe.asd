@@ -24,6 +24,7 @@
                :sxql
 
                ;; Misc packages
+               :cl-recaptcha
                :drakma)
   :components ((:module "src"
                 :components

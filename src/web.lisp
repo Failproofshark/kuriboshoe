@@ -25,6 +25,10 @@
 (defvar *web* (make-instance '<web>))
 (clear-routing-rules *web*)
 
+;; Recaptcha stuff
+(setf cl-recaptcha:*site-key* (config :site-key))
+(setf cl-recaptcha:*secret-key* (config :secret-key))
+
 ;;
 ;; Routing rules
 ;;GET
@@ -40,7 +44,8 @@
                              ((string= |error| "invalid-input-response") "Recaptcha response is invalid or malformed")
                              (t ""))))
     (render #p "login.html" `(:error ,error-message
-                                     :sitekey ,(config :site-key)))))
+                                     :recaptcha_header_tag ,cl-recaptcha:*recaptcha-header-script-tag*
+                                     :captcha ,(cl-recaptcha:challenge-js)))))
 
 (defroute ("/admin/main" :method :get) ()
   (session-protected-route (:html)
@@ -84,14 +89,8 @@
 
 ;;POST
 (defroute ("/admin/verify" :method :post) (&key |user| |password| |g-recaptcha-response|)
-  (let* ((stream (http-request "https://www.google.com/recaptcha/api/siteverify"
-                               :method :post
-                               :parameters `(("secret" . ,(config :secret-key))
-                                             ("response" . ,|g-recaptcha-response|))
-                               :want-stream t))
-         (google-response (progn (setf (flexi-stream-external-format stream) :utf-8)
-                                 (setf google-response (decode-json stream)))))
-    (if (cdr (assoc :success google-response))
+  (multiple-value-bind (captcha-valid captcha-errors) (cl-recaptcha:verify-captcha |g-recaptcha-response|)
+    (if captcha-valid
         (if (and (and (stringp |user|) (> (length |user|) 0))
                  (and (stringp |password|) (> (length |password|) 0)))
             (let ((validation-sql (make-string-output-stream))
@@ -103,8 +102,8 @@
               (with-connection (db)
                 (setf number-login-attempts (getf (retrieve-one
                                                    (select :numberattempts
-                                                           (from :login_attempts)
-                                                           (where (:= :username sanitized-username))))
+                                                     (from :login_attempts)
+                                                     (where (:= :username sanitized-username))))
                                                   :numberattempts))
                 (unless (and (realp number-login-attempts) (>= number-login-attempts 3))
                   (format t "in")
@@ -114,12 +113,12 @@
                                            nil))
                     (if is-validated
                         (execute (delete-from :login_attempts
-                                              (where (:= :username sanitized-username))))
+                                   (where (:= :username sanitized-username))))
                         (if number-login-attempts
                             (execute 
                              (update :login_attempts
-                                     (set= :numberattempts (+ number-login-attempts 1))
-                                     (where (:= :username sanitized-username))))
+                               (set= :numberattempts (+ number-login-attempts 1))
+                               (where (:= :username sanitized-username))))
                             (execute
                              (create-insert-statement :login_attempts `(:username ,sanitized-username))))))))
               (cond ((and (realp number-login-attempts) (>= number-login-attempts 3)) (redirect "/admin?error=ELOCKED"))
@@ -127,7 +126,7 @@
                                          (redirect "/admin/main")))
                     (t (redirect "/admin?error=EINCORR"))))
             (redirect "/admin?error=EMISSING"))
-        (redirect (concatenate 'string "/admin?error=" (cadr (assoc :error-codes google-response)))))))
+        (redirect (concatenate 'string "/admin?error=" (car captcha-errors))))))
       
 (defroute ("/admin/company/" :method :post) (&key _parsed)
   (format t "~a" _parsed)

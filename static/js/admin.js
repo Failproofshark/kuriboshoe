@@ -681,7 +681,7 @@ GameTrackerAdmin.vm = new function() {
                             vm.systemForm.clearForm();
                             vm.isLoading = false;
                         } else {
-                            vm.errorMessage = "Could not add the game."
+                            vm.errorMessage = "Could not add the game.";
                             vm.isLoading = false;
                         }
                     }, vm.reportInternalError);
