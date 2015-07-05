@@ -23,6 +23,9 @@
                :datafly
                :sxql
 
+               ;;Session storage
+               :lack-session-store-dbi
+
                ;; Misc packages
                :cl-recaptcha
                :drakma)

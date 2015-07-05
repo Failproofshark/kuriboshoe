@@ -4,6 +4,12 @@
   (:use :cl)
   (:import-from :lack.builder
                 :builder)
+  (:import-from :lack.session.store.dbi
+                :make-dbi-store)
+  (:import-from :dbi
+                :connect)
+  (:import-from :kuriboshoe.db
+                :connection-settings)
   (:import-from :ppcre
                 :scan
                 :regex-replace)
@@ -31,7 +37,8 @@
      '(:backtrace
        :output (getf (config) :error-log))
      nil)
- :session
+ (:session
+  :store (make-dbi-store :connector (lambda () (apply #'connect (connection-settings)))))
  (if (productionp)
      nil
      (lambda (app)
